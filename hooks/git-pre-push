@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Git hook: pre-push
+# Automatically pushes AI attestation notes to remote
+#
+# Arguments passed by git:
+#   $1 - remote name (e.g., "origin")
+#   $2 - remote URL
+
+set -e
+
+REMOTE_NAME="$1"
+# REMOTE_URL="$2" - passed by git but not used in this hook
+
+# Check if any AI attestation notes exist
+if ! git notes --ref=ai-attestation list &> /dev/null; then
+    # No notes to push
+    exit 0
+fi
+
+# Count notes
+notes_count=$(git notes --ref=ai-attestation list | wc -l)
+
+# Check if notes have been pushed before
+# Compare local notes with remote notes
+# Use temp ref with PID to avoid collisions
+TEMP_REF="refs/notes/ai-attestation-push-compare-$$"
+
+if git ls-remote "$REMOTE_NAME" refs/notes/ai-attestation &> /dev/null; then
+    # Remote notes exist, fetch them to temp ref for comparison
+    git fetch "$REMOTE_NAME" refs/notes/ai-attestation:"$TEMP_REF" 2>/dev/null || true
+
+    # If local and remote are the same, skip push
+    if git diff refs/notes/ai-attestation "$TEMP_REF" --quiet 2>/dev/null; then
+        # Clean up temp ref
+        git update-ref -d "$TEMP_REF" 2>/dev/null || true
+        exit 0
+    fi
+
+    # Clean up temp ref before pushing
+    git update-ref -d "$TEMP_REF" 2>/dev/null || true
+fi
+
+# Push notes
+echo "🤖 Pushing $notes_count AI attestation note(s) to $REMOTE_NAME..."
+
+if git push "$REMOTE_NAME" refs/notes/ai-attestation 2>&1; then
+    echo "✓ AI attestation notes pushed successfully"
+else
+    echo "⚠️  Failed to push AI attestation notes (continuing with commit push)"
+    # Don't fail the push if notes push fails
+fi
+
+exit 0

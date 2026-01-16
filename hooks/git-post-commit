@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Git hook: post-commit
+# Attaches AI attestation as git note after commit
+#
+# This is more reliable than Claude Code's PostCommit hook because:
+# - Works with any commit method (CLI, IDE, GUI)
+# - Always runs after successful commit
+# - Part of standard git workflow
+
+set -e
+
+# Path to attestation script
+ATTESTATION_SCRIPT="${HOME}/.ai-attestation/hooks/post-commit-attestation.sh"
+
+# Only run if script exists
+if [[ ! -x "$ATTESTATION_SCRIPT" ]]; then
+    exit 0
+fi
+
+# Call the attestation script
+"$ATTESTATION_SCRIPT"

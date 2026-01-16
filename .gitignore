@@ -1,0 +1,30 @@
+# User installation directory (not the repo itself)
+# Users install to ~/.ai-attestation, not tracked here
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test artifacts
+test-repo/
+*.bats.tmp
+
+# Editor/IDE files
+.vscode/
+.idea/
+*.sublime-*
+
+# Logs
+*.log
+
+# Generated keys (if accidentally created in repo)
+*.key
+*.pub
+*.fingerprint
+
+# Session files (if accidentally created in repo)
+current-session.json
+prompts.log

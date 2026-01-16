@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Git hook: prepare-commit-msg
+# Injects AI session summary into commit message before editor opens
+#
+# Arguments passed by git:
+#   $1 - path to commit message file
+#   $2 - commit source (message, template, merge, squash, commit)
+#   $3 - commit SHA (for amend/reword)
+
+set -e
+
+COMMIT_MSG_FILE="$1"
+COMMIT_SOURCE="$2"
+
+SESSION_FILE="${HOME}/.ai-attestation/current-session.json"
+
+# Only inject summary for new commits (not merge, squash, amend)
+if [[ -n "$COMMIT_SOURCE" && "$COMMIT_SOURCE" != "message" ]]; then
+    exit 0
+fi
+
+# Check if AI session exists
+if [[ ! -f "$SESSION_FILE" ]]; then
+    exit 0
+fi
+
+# Parse session data
+if ! command -v jq &> /dev/null; then
+    # jq not available, skip silently
+    exit 0
+fi
+
+# Read session data
+session_data=$(cat "$SESSION_FILE")
+model=$(echo "$session_data" | jq -r '.model // "unknown"')
+files_count=$(echo "$session_data" | jq -r '.files_modified | length')
+prompts_count=$(echo "$session_data" | jq -r '.prompts | length')
+
+# Only show summary if there's actual AI activity
+if [[ "$files_count" == "0" && "$prompts_count" == "0" ]]; then
+    exit 0
+fi
+
+# Create AI summary block
+ai_summary=$(cat <<EOF
+# ──────────────────────────────────────
+# 🤖 AI-Assisted Commit
+# Model: $model
+# Files: $files_count, Prompts: $prompts_count
+# ──────────────────────────────────────
+EOF
+)
+
+# Inject summary before the first comment line or at the end
+if grep -q "^#" "$COMMIT_MSG_FILE"; then
+    # Insert before first comment
+    awk -v summary="$ai_summary" '
+        !done && /^#/ { print summary; print ""; done=1 }
+        { print }
+    ' "$COMMIT_MSG_FILE" > "$COMMIT_MSG_FILE.tmp"
+    mv "$COMMIT_MSG_FILE.tmp" "$COMMIT_MSG_FILE"
+else
+    # Append at end
+    echo "" >> "$COMMIT_MSG_FILE"
+    echo "$ai_summary" >> "$COMMIT_MSG_FILE"
+fi

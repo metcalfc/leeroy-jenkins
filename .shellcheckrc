@@ -1,0 +1,10 @@
+# ShellCheck configuration for AI Attestation Toolkit
+# Disables for checks that are acceptable for this POC
+
+# SC2312: Consider invoking this command separately to avoid masking its return value
+# We intentionally use command substitution in conditionals for conciseness
+disable=SC2312
+
+# SC1091: Not following sourced files
+# We don't source external files, but if we did, they might not be in the repo
+disable=SC1091

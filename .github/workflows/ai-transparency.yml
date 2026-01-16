@@ -1,0 +1,244 @@
+name: AI Transparency Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check-attestation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for notes
+          
+      - name: Fetch AI attestation notes
+        id: fetch-notes
+        run: |
+          # Try to fetch attestation notes from origin
+          git fetch origin refs/notes/ai-attestation:refs/notes/ai-attestation 2>/dev/null || {
+            echo "notes_exist=false" >> $GITHUB_OUTPUT
+            exit 0
+          }
+          echo "notes_exist=true" >> $GITHUB_OUTPUT
+          
+      - name: Analyze commits for AI attestation
+        id: analyze
+        run: |
+          # Get the commit range for this PR
+          BASE_SHA=${{ github.event.pull_request.base.sha }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+          
+          echo "Analyzing commits from ${BASE_SHA:0:8} to ${HEAD_SHA:0:8}"
+          
+          # Count total commits in PR
+          total=$(git rev-list --count ${BASE_SHA}..${HEAD_SHA})
+          echo "total=${total}" >> $GITHUB_OUTPUT
+          
+          # Count commits with AI attestation
+          attested=0
+          attested_commits=""
+          unattested_commits=""
+          
+          for sha in $(git rev-list ${BASE_SHA}..${HEAD_SHA}); do
+            short_sha="${sha:0:8}"
+            subject=$(git log -1 --format="%s" ${sha})
+            
+            if git notes --ref=ai-attestation show ${sha} &>/dev/null; then
+              ((attested++)) || true
+              attested_commits="${attested_commits}\n- \`${short_sha}\` ${subject}"
+            else
+              unattested_commits="${unattested_commits}\n- \`${short_sha}\` ${subject}"
+            fi
+          done
+          
+          echo "attested=${attested}" >> $GITHUB_OUTPUT
+          echo "attested_commits<<EOF" >> $GITHUB_OUTPUT
+          echo -e "${attested_commits}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "unattested_commits<<EOF" >> $GITHUB_OUTPUT
+          echo -e "${unattested_commits}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # Determine labels
+          if [[ ${attested} -gt 0 ]]; then
+            echo "has_ai=true" >> $GITHUB_OUTPUT
+            if [[ ${attested} -lt ${total} ]]; then
+              echo "label=ai-assisted-partial" >> $GITHUB_OUTPUT
+            else
+              echo "label=ai-assisted" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "has_ai=false" >> $GITHUB_OUTPUT
+            echo "label=no-ai-attestation" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Extract attestation details
+        id: details
+        if: steps.analyze.outputs.has_ai == 'true'
+        run: |
+          BASE_SHA=${{ github.event.pull_request.base.sha }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+
+          # Collect unique models and tools used
+          models=""
+          prompts_summary=""
+          signature_summary=""
+
+          for sha in $(git rev-list ${BASE_SHA}..${HEAD_SHA}); do
+            attestation=$(git notes --ref=ai-attestation show ${sha} 2>/dev/null || true)
+            if [[ -n "${attestation}" ]]; then
+              model=$(echo "${attestation}" | grep "^Model:" | cut -d: -f2- | xargs)
+              tool=$(echo "${attestation}" | grep "^Tool:" | cut -d: -f2- | xargs)
+
+              if [[ -n "${model}" ]]; then
+                models="${models}${model}\n"
+              fi
+
+              # Check signatures
+              tool_sig_status="❌ Unsigned"
+              commit_sig_status="❌ Unsigned"
+
+              # Check for tool signature
+              if echo "${attestation}" | grep -q "^Tool-Signature:"; then
+                tool_sig_status="✅ Signed"
+              fi
+
+              # Check for git commit signature
+              if git verify-commit ${sha} &>/dev/null; then
+                signer=$(git show -s --format='%GS' ${sha})
+                commit_sig_status="✅ Signed by ${signer}"
+              fi
+
+              signature_summary="${signature_summary}\n- \`${sha:0:8}\` Tool: ${tool_sig_status} | Commit: ${commit_sig_status}"
+
+              # Extract prompts (limited preview)
+              prompt_section=$(echo "${attestation}" | sed -n '/^Prompts:/,/^[A-Z]/p' | grep -E "^\s+\[" | head -5)
+              if [[ -n "${prompt_section}" ]]; then
+                prompts_summary="${prompts_summary}\n**Commit ${sha:0:8}:**\n\`\`\`\n${prompt_section}\n\`\`\`"
+              fi
+            fi
+          done
+
+          # Deduplicate models
+          unique_models=$(echo -e "${models}" | sort -u | grep -v "^$" | tr '\n' ', ' | sed 's/,$//')
+          echo "models=${unique_models}" >> $GITHUB_OUTPUT
+
+          echo "prompts_summary<<EOF" >> $GITHUB_OUTPUT
+          echo -e "${prompts_summary}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "signature_summary<<EOF" >> $GITHUB_OUTPUT
+          echo -e "${signature_summary}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+      - name: Add labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const label = '${{ steps.analyze.outputs.label }}';
+            
+            // Remove any existing AI-related labels first
+            const existingLabels = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+            
+            const aiLabels = existingLabels.data
+              .filter(l => l.name.startsWith('ai-'))
+              .map(l => l.name);
+            
+            for (const oldLabel of aiLabels) {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                name: oldLabel
+              }).catch(() => {}); // Ignore if label doesn't exist
+            }
+            
+            // Add new label
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: [label]
+            });
+            
+      - name: Post summary comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const total = parseInt('${{ steps.analyze.outputs.total }}');
+            const attested = parseInt('${{ steps.analyze.outputs.attested }}');
+            const hasAi = '${{ steps.analyze.outputs.has_ai }}' === 'true';
+            const models = '${{ steps.details.outputs.models }}' || 'N/A';
+            const attestedCommits = `${{ steps.analyze.outputs.attested_commits }}`;
+            const unattestedCommits = `${{ steps.analyze.outputs.unattested_commits }}`;
+            const promptsSummary = `${{ steps.details.outputs.prompts_summary }}`;
+            const signatureSummary = `${{ steps.details.outputs.signature_summary }}`;
+
+            let body = '## 🤖 AI Transparency Report\n\n';
+
+            if (hasAi) {
+              body += `**${attested}/${total}** commits in this PR have AI attestation.\n\n`;
+              body += `**Models used:** ${models}\n\n`;
+
+              if (signatureSummary.trim()) {
+                body += `### Signature Status\n${signatureSummary}\n\n`;
+              }
+
+              if (attestedCommits.trim()) {
+                body += `### AI-Assisted Commits\n${attestedCommits}\n\n`;
+              }
+
+              if (unattestedCommits.trim()) {
+                body += `### Commits Without Attestation\n${unattestedCommits}\n\n`;
+              }
+
+              if (promptsSummary.trim()) {
+                body += `### Prompt Preview\n${promptsSummary}\n\n`;
+              }
+
+              body += `---\n*View full attestation details with: \`git notes --ref=ai-attestation show <commit>\`*`;
+            } else {
+              body += `No AI attestation found in this PR's commits.\n\n`;
+              body += `This could mean:\n`;
+              body += `- The code was written without AI assistance\n`;
+              body += `- AI was used but attestation wasn't set up\n`;
+              body += `- Attestation notes weren't pushed to the remote\n\n`;
+              body += `---\n*Set up AI attestation: [ai-attestation toolkit](https://github.com/your-org/ai-attestation)*`;
+            }
+            
+            // Find and update existing comment or create new one
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+            
+            const botComment = comments.data.find(c => 
+              c.user.type === 'Bot' && c.body.includes('AI Transparency Report')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
