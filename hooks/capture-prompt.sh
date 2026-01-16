@@ -12,7 +12,7 @@ SESSION_TRACKER="${SCRIPT_DIR}/session-tracker.sh"
 prompt_json=$(cat)
 
 # Debug: log raw JSON for troubleshooting (comment out in production)
-# echo "$prompt_json" >> ~/.ai-attestation/prompt-debug.log
+# echo "$prompt_json" >> ~/.leeroy/prompt-debug.log
 
 # Extract user message text
 # Try multiple possible JSON paths since the exact format isn't documented

@@ -6,7 +6,7 @@ setup() {
     # Create temporary test directory
     TEST_DIR="$(mktemp -d)"
     export HOME="$TEST_DIR"
-    mkdir -p "$HOME/.ai-attestation"
+    mkdir -p "$HOME/.leeroy"
 
     # Path to session tracker script
     SESSION_TRACKER="${BATS_TEST_DIRNAME}/../hooks/session-tracker.sh"
@@ -29,34 +29,34 @@ teardown() {
     [ "$status" -eq 0 ]
 
     # Check session file was created
-    [ -f "$HOME/.ai-attestation/current-session.json" ]
+    [ -f "$HOME/.leeroy/current-session.json" ]
 
     # Verify JSON structure
-    session_id=$(jq -r '.session_id' "$HOME/.ai-attestation/current-session.json")
+    session_id=$(jq -r '.session_id' "$HOME/.leeroy/current-session.json")
     [ -n "$session_id" ]
     [ "$session_id" != "null" ]
 
     # Verify started_at timestamp
-    started_at=$(jq -r '.started_at' "$HOME/.ai-attestation/current-session.json")
+    started_at=$(jq -r '.started_at' "$HOME/.leeroy/current-session.json")
     [ -n "$started_at" ]
 
     # Verify arrays are initialized
-    files_count=$(jq '.files_modified | length' "$HOME/.ai-attestation/current-session.json")
+    files_count=$(jq '.files_modified | length' "$HOME/.leeroy/current-session.json")
     [ "$files_count" -eq 0 ]
 
-    prompts_count=$(jq '.prompts | length' "$HOME/.ai-attestation/current-session.json")
+    prompts_count=$(jq '.prompts | length' "$HOME/.leeroy/current-session.json")
     [ "$prompts_count" -eq 0 ]
 }
 
 @test "init: is idempotent (doesn't create new session if one exists)" {
     run "$SESSION_TRACKER" init
     [ "$status" -eq 0 ]
-    session_id1=$(jq -r '.session_id' "$HOME/.ai-attestation/current-session.json")
+    session_id1=$(jq -r '.session_id' "$HOME/.leeroy/current-session.json")
 
     # Initialize again - should not change session
     run "$SESSION_TRACKER" init
     [ "$status" -eq 0 ]
-    session_id2=$(jq -r '.session_id' "$HOME/.ai-attestation/current-session.json")
+    session_id2=$(jq -r '.session_id' "$HOME/.leeroy/current-session.json")
 
     # IDs should be the same (idempotent)
     [ "$session_id1" = "$session_id2" ]
@@ -64,17 +64,17 @@ teardown() {
 
 @test "file: auto-initializes session if needed" {
     # Session doesn't exist yet
-    [ ! -f "$HOME/.ai-attestation/current-session.json" ]
+    [ ! -f "$HOME/.leeroy/current-session.json" ]
 
     # Log a file modification
     run "$SESSION_TRACKER" file "test.txt" modified
     [ "$status" -eq 0 ]
 
     # Session should now exist
-    [ -f "$HOME/.ai-attestation/current-session.json" ]
+    [ -f "$HOME/.leeroy/current-session.json" ]
 
     # File should be logged
-    files_count=$(jq '.files_modified | length' "$HOME/.ai-attestation/current-session.json")
+    files_count=$(jq '.files_modified | length' "$HOME/.leeroy/current-session.json")
     [ "$files_count" -eq 1 ]
 }
 
@@ -85,13 +85,13 @@ teardown() {
     [ "$status" -eq 0 ]
 
     # Check file was added
-    path=$(jq -r '.files_modified[0].path' "$HOME/.ai-attestation/current-session.json")
+    path=$(jq -r '.files_modified[0].path' "$HOME/.leeroy/current-session.json")
     [ "$path" = "src/main.rs" ]
 
-    type=$(jq -r '.files_modified[0].type' "$HOME/.ai-attestation/current-session.json")
+    type=$(jq -r '.files_modified[0].type' "$HOME/.leeroy/current-session.json")
     [ "$type" = "modified" ]
 
-    timestamp=$(jq -r '.files_modified[0].timestamp' "$HOME/.ai-attestation/current-session.json")
+    timestamp=$(jq -r '.files_modified[0].timestamp' "$HOME/.leeroy/current-session.json")
     [ -n "$timestamp" ]
 }
 
@@ -102,17 +102,17 @@ teardown() {
     "$SESSION_TRACKER" file "file2.txt" modified
     "$SESSION_TRACKER" file "file3.txt" deleted
 
-    files_count=$(jq '.files_modified | length' "$HOME/.ai-attestation/current-session.json")
+    files_count=$(jq '.files_modified | length' "$HOME/.leeroy/current-session.json")
     [ "$files_count" -eq 3 ]
 
     # Verify each file
-    path1=$(jq -r '.files_modified[0].path' "$HOME/.ai-attestation/current-session.json")
+    path1=$(jq -r '.files_modified[0].path' "$HOME/.leeroy/current-session.json")
     [ "$path1" = "file1.txt" ]
 
-    path2=$(jq -r '.files_modified[1].path' "$HOME/.ai-attestation/current-session.json")
+    path2=$(jq -r '.files_modified[1].path' "$HOME/.leeroy/current-session.json")
     [ "$path2" = "file2.txt" ]
 
-    path3=$(jq -r '.files_modified[2].path' "$HOME/.ai-attestation/current-session.json")
+    path3=$(jq -r '.files_modified[2].path' "$HOME/.leeroy/current-session.json")
     [ "$path3" = "file3.txt" ]
 }
 
@@ -120,27 +120,27 @@ teardown() {
     "$SESSION_TRACKER" init
 
     "$SESSION_TRACKER" file "new.txt" created
-    type=$(jq -r '.files_modified[0].type' "$HOME/.ai-attestation/current-session.json")
+    type=$(jq -r '.files_modified[0].type' "$HOME/.leeroy/current-session.json")
     [ "$type" = "created" ]
 
     "$SESSION_TRACKER" file "existing.txt" modified
-    type=$(jq -r '.files_modified[1].type' "$HOME/.ai-attestation/current-session.json")
+    type=$(jq -r '.files_modified[1].type' "$HOME/.leeroy/current-session.json")
     [ "$type" = "modified" ]
 
     "$SESSION_TRACKER" file "old.txt" deleted
-    type=$(jq -r '.files_modified[2].type' "$HOME/.ai-attestation/current-session.json")
+    type=$(jq -r '.files_modified[2].type' "$HOME/.leeroy/current-session.json")
     [ "$type" = "deleted" ]
 }
 
 @test "prompt: auto-initializes session if needed" {
-    [ ! -f "$HOME/.ai-attestation/current-session.json" ]
+    [ ! -f "$HOME/.leeroy/current-session.json" ]
 
     run "$SESSION_TRACKER" prompt "test prompt"
     [ "$status" -eq 0 ]
 
-    [ -f "$HOME/.ai-attestation/current-session.json" ]
+    [ -f "$HOME/.leeroy/current-session.json" ]
 
-    prompts_count=$(jq '.prompts | length' "$HOME/.ai-attestation/current-session.json")
+    prompts_count=$(jq '.prompts | length' "$HOME/.leeroy/current-session.json")
     [ "$prompts_count" -eq 1 ]
 }
 
@@ -150,10 +150,10 @@ teardown() {
     run "$SESSION_TRACKER" prompt "Fix the bug in main.rs"
     [ "$status" -eq 0 ]
 
-    text=$(jq -r '.prompts[0].text' "$HOME/.ai-attestation/current-session.json")
+    text=$(jq -r '.prompts[0].text' "$HOME/.leeroy/current-session.json")
     [ "$text" = "Fix the bug in main.rs" ]
 
-    timestamp=$(jq -r '.prompts[0].timestamp' "$HOME/.ai-attestation/current-session.json")
+    timestamp=$(jq -r '.prompts[0].timestamp' "$HOME/.leeroy/current-session.json")
     [ -n "$timestamp" ]
 }
 
@@ -164,16 +164,16 @@ teardown() {
     "$SESSION_TRACKER" prompt "Second prompt"
     "$SESSION_TRACKER" prompt "Third prompt"
 
-    prompts_count=$(jq '.prompts | length' "$HOME/.ai-attestation/current-session.json")
+    prompts_count=$(jq '.prompts | length' "$HOME/.leeroy/current-session.json")
     [ "$prompts_count" -eq 3 ]
 
-    text1=$(jq -r '.prompts[0].text' "$HOME/.ai-attestation/current-session.json")
+    text1=$(jq -r '.prompts[0].text' "$HOME/.leeroy/current-session.json")
     [ "$text1" = "First prompt" ]
 
-    text2=$(jq -r '.prompts[1].text' "$HOME/.ai-attestation/current-session.json")
+    text2=$(jq -r '.prompts[1].text' "$HOME/.leeroy/current-session.json")
     [ "$text2" = "Second prompt" ]
 
-    text3=$(jq -r '.prompts[2].text' "$HOME/.ai-attestation/current-session.json")
+    text3=$(jq -r '.prompts[2].text' "$HOME/.leeroy/current-session.json")
     [ "$text3" = "Third prompt" ]
 }
 
@@ -184,11 +184,11 @@ teardown() {
     "$SESSION_TRACKER" prompt "Test prompt 2"
 
     # Check prompts.log exists and has content
-    [ -f "$HOME/.ai-attestation/prompts.log" ]
+    [ -f "$HOME/.leeroy/prompts.log" ]
 
     # Should contain both prompts
-    grep -q "Test prompt 1" "$HOME/.ai-attestation/prompts.log"
-    grep -q "Test prompt 2" "$HOME/.ai-attestation/prompts.log"
+    grep -q "Test prompt 1" "$HOME/.leeroy/prompts.log"
+    grep -q "Test prompt 2" "$HOME/.leeroy/prompts.log"
 }
 
 @test "get: returns session JSON" {
@@ -216,29 +216,29 @@ teardown() {
 
 @test "clear: removes session file" {
     "$SESSION_TRACKER" init
-    [ -f "$HOME/.ai-attestation/current-session.json" ]
+    [ -f "$HOME/.leeroy/current-session.json" ]
 
     run "$SESSION_TRACKER" clear
     [ "$status" -eq 0 ]
 
-    [ ! -f "$HOME/.ai-attestation/current-session.json" ]
+    [ ! -f "$HOME/.leeroy/current-session.json" ]
 }
 
 @test "clear: preserves prompts.log" {
     "$SESSION_TRACKER" init
     "$SESSION_TRACKER" prompt "test prompt"
 
-    [ -f "$HOME/.ai-attestation/prompts.log" ]
+    [ -f "$HOME/.leeroy/prompts.log" ]
 
     "$SESSION_TRACKER" clear
 
     # prompts.log should still exist
-    [ -f "$HOME/.ai-attestation/prompts.log" ]
-    grep -q "test prompt" "$HOME/.ai-attestation/prompts.log"
+    [ -f "$HOME/.leeroy/prompts.log" ]
+    grep -q "test prompt" "$HOME/.leeroy/prompts.log"
 }
 
 @test "clear: succeeds even if no session" {
-    [ ! -f "$HOME/.ai-attestation/current-session.json" ]
+    [ ! -f "$HOME/.leeroy/current-session.json" ]
 
     run "$SESSION_TRACKER" clear
     [ "$status" -eq 0 ]
@@ -249,7 +249,7 @@ teardown() {
 
     "$SESSION_TRACKER" init
 
-    version=$(jq -r '.tool_version' "$HOME/.ai-attestation/current-session.json")
+    version=$(jq -r '.tool_version' "$HOME/.leeroy/current-session.json")
     [ "$version" = "1.2.3" ]
 }
 
@@ -258,7 +258,7 @@ teardown() {
 
     "$SESSION_TRACKER" init
 
-    model=$(jq -r '.model' "$HOME/.ai-attestation/current-session.json")
+    model=$(jq -r '.model' "$HOME/.leeroy/current-session.json")
     [ "$model" = "claude-sonnet-4" ]
 }
 
@@ -270,17 +270,17 @@ teardown() {
     [ "$status" -eq 0 ]
 
     # Should have "unknown" as default value
-    version=$(jq -r '.tool_version' "$HOME/.ai-attestation/current-session.json")
+    version=$(jq -r '.tool_version' "$HOME/.leeroy/current-session.json")
     [ "$version" = "unknown" ]
 
-    model=$(jq -r '.model' "$HOME/.ai-attestation/current-session.json")
+    model=$(jq -r '.model' "$HOME/.leeroy/current-session.json")
     [ "$model" = "unknown" ]
 }
 
 @test "full workflow: init -> file -> prompt -> get -> clear" {
     # Initialize
     "$SESSION_TRACKER" init
-    session_id=$(jq -r '.session_id' "$HOME/.ai-attestation/current-session.json")
+    session_id=$(jq -r '.session_id' "$HOME/.leeroy/current-session.json")
 
     # Log files
     "$SESSION_TRACKER" file "main.rs" modified
@@ -300,8 +300,8 @@ teardown() {
 
     # Clear
     "$SESSION_TRACKER" clear
-    [ ! -f "$HOME/.ai-attestation/current-session.json" ]
+    [ ! -f "$HOME/.leeroy/current-session.json" ]
 
     # Verify prompts.log preserved
-    [ -f "$HOME/.ai-attestation/prompts.log" ]
+    [ -f "$HOME/.leeroy/prompts.log" ]
 }

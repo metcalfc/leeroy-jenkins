@@ -13,7 +13,7 @@ PREV_HEAD="$1"
 NEW_HEAD="$2"
 BRANCH_CHECKOUT="$3"
 
-SESSION_FILE="${HOME}/.ai-attestation/current-session.json"
+SESSION_FILE="${HOME}/.leeroy/current-session.json"
 
 # Only act on branch checkouts, not file checkouts
 if [[ "$BRANCH_CHECKOUT" != "1" ]]; then
@@ -53,7 +53,7 @@ fi
 rm -f "$SESSION_FILE"
 
 # Also clear prompts log if it exists
-PROMPTS_LOG="${HOME}/.ai-attestation/prompts.log"
+PROMPTS_LOG="${HOME}/.leeroy/prompts.log"
 if [[ -f "$PROMPTS_LOG" ]]; then
     rm -f "$PROMPTS_LOG"
 fi

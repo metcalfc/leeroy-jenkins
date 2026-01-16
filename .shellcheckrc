@@ -1,4 +1,4 @@
-# ShellCheck configuration for AI Attestation Toolkit
+# ShellCheck configuration for Leeroy Toolkit
 # Disables for checks that are acceptable for this POC
 
 # SC2312: Consider invoking this command separately to avoid masking its return value

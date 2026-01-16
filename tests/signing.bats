@@ -6,7 +6,7 @@ setup() {
     # Create temporary test directory
     TEST_DIR="$(mktemp -d)"
     export HOME="$TEST_DIR"
-    mkdir -p "$HOME/.ai-attestation"
+    mkdir -p "$HOME/.leeroy"
 
     # Path to sign-attestation script
     SIGN_SCRIPT="${BATS_TEST_DIRNAME}/../hooks/sign-attestation.sh"
@@ -45,10 +45,10 @@ teardown() {
     run "$SIGN_SCRIPT" generate-keys
     [ "$status" -eq 0 ]
 
-    [ -f "$HOME/.ai-attestation/toolkit.key" ]
+    [ -f "$HOME/.leeroy/toolkit.key" ]
 
     # Check permissions (should be 600)
-    perms=$(stat -c "%a" "$HOME/.ai-attestation/toolkit.key")
+    perms=$(stat -c "%a" "$HOME/.leeroy/toolkit.key")
     [ "$perms" = "600" ]
 }
 
@@ -56,10 +56,10 @@ teardown() {
     run "$SIGN_SCRIPT" generate-keys
     [ "$status" -eq 0 ]
 
-    [ -f "$HOME/.ai-attestation/toolkit.pub" ]
+    [ -f "$HOME/.leeroy/toolkit.pub" ]
 
     # Check permissions (should be 644)
-    perms=$(stat -c "%a" "$HOME/.ai-attestation/toolkit.pub")
+    perms=$(stat -c "%a" "$HOME/.leeroy/toolkit.pub")
     [ "$perms" = "644" ]
 }
 
@@ -67,10 +67,10 @@ teardown() {
     run "$SIGN_SCRIPT" generate-keys
     [ "$status" -eq 0 ]
 
-    [ -f "$HOME/.ai-attestation/toolkit.fingerprint" ]
+    [ -f "$HOME/.leeroy/toolkit.fingerprint" ]
 
     # Fingerprint should be non-empty base64 string
-    fingerprint=$(cat "$HOME/.ai-attestation/toolkit.fingerprint")
+    fingerprint=$(cat "$HOME/.leeroy/toolkit.fingerprint")
     [ -n "$fingerprint" ]
 
     # Should be base64 (no validation of exact format, just check it exists)
@@ -80,11 +80,11 @@ teardown() {
 @test "generate-keys: is idempotent (doesn't overwrite existing keys)" {
     # Generate keys first time
     "$SIGN_SCRIPT" generate-keys
-    fingerprint1=$(cat "$HOME/.ai-attestation/toolkit.fingerprint")
+    fingerprint1=$(cat "$HOME/.leeroy/toolkit.fingerprint")
 
     # Try to generate again
     "$SIGN_SCRIPT" generate-keys
-    fingerprint2=$(cat "$HOME/.ai-attestation/toolkit.fingerprint")
+    fingerprint2=$(cat "$HOME/.leeroy/toolkit.fingerprint")
 
     # Fingerprints should be identical (keys not regenerated)
     [ "$fingerprint1" = "$fingerprint2" ]
@@ -98,7 +98,7 @@ teardown() {
     [ -n "$output" ]
 
     # Should match fingerprint file
-    expected=$(cat "$HOME/.ai-attestation/toolkit.fingerprint")
+    expected=$(cat "$HOME/.leeroy/toolkit.fingerprint")
     [ "$output" = "$expected" ]
 }
 
@@ -109,14 +109,14 @@ teardown() {
 }
 
 @test "sign: generates keys automatically if needed" {
-    [ ! -f "$HOME/.ai-attestation/toolkit.key" ]
+    [ ! -f "$HOME/.leeroy/toolkit.key" ]
 
     echo "$SAMPLE_ATTESTATION" | "$SIGN_SCRIPT" sign > /dev/null
 
     # Keys should now exist
-    [ -f "$HOME/.ai-attestation/toolkit.key" ]
-    [ -f "$HOME/.ai-attestation/toolkit.pub" ]
-    [ -f "$HOME/.ai-attestation/toolkit.fingerprint" ]
+    [ -f "$HOME/.leeroy/toolkit.key" ]
+    [ -f "$HOME/.leeroy/toolkit.pub" ]
+    [ -f "$HOME/.leeroy/toolkit.fingerprint" ]
 }
 
 @test "sign: adds signature block to attestation" {
@@ -148,7 +148,7 @@ teardown() {
 
 @test "sign: includes correct fingerprint" {
     "$SIGN_SCRIPT" generate-keys
-    expected_fingerprint=$(cat "$HOME/.ai-attestation/toolkit.fingerprint")
+    expected_fingerprint=$(cat "$HOME/.leeroy/toolkit.fingerprint")
 
     signed=$(echo "$SAMPLE_ATTESTATION" | "$SIGN_SCRIPT" sign)
 
@@ -201,7 +201,7 @@ Human-Review-Attested: true"
 
 @test "verify: shows fingerprint on successful verification" {
     signed=$(echo "$SAMPLE_ATTESTATION" | "$SIGN_SCRIPT" sign)
-    fingerprint=$(cat "$HOME/.ai-attestation/toolkit.fingerprint")
+    fingerprint=$(cat "$HOME/.leeroy/toolkit.fingerprint")
 
     run bash -c "echo '$signed' | '$SIGN_SCRIPT' verify 2>&1"
     [ "$status" -eq 0 ]
@@ -299,7 +299,7 @@ Human-Review-Attested: true"
     "$SIGN_SCRIPT" generate-keys
 
     # Verify private key is valid by checking it can be read by openssl
-    run openssl pkey -in "$HOME/.ai-attestation/toolkit.key" -text -noout
+    run openssl pkey -in "$HOME/.leeroy/toolkit.key" -text -noout
     [ "$status" -eq 0 ]
     [[ "$output" == *"ED25519"* ]]
 }
@@ -308,7 +308,7 @@ Human-Review-Attested: true"
     "$SIGN_SCRIPT" generate-keys
 
     # Verify public key is valid
-    run openssl pkey -pubin -in "$HOME/.ai-attestation/toolkit.pub" -text -noout
+    run openssl pkey -pubin -in "$HOME/.leeroy/toolkit.pub" -text -noout
     [ "$status" -eq 0 ]
     [[ "$output" == *"ED25519"* ]]
 }

@@ -1,4 +1,4 @@
-name: AI Transparency Check
+name: Leeroy Transparency Check
 
 on:
   pull_request:
@@ -17,17 +17,17 @@ jobs:
         with:
           fetch-depth: 0  # Need full history for notes
           
-      - name: Fetch AI attestation notes
+      - name: Fetch Leeroy attestation notes
         id: fetch-notes
         run: |
           # Try to fetch attestation notes from origin
-          git fetch origin refs/notes/ai-attestation:refs/notes/ai-attestation 2>/dev/null || {
+          git fetch origin refs/notes/leeroy:refs/notes/leeroy 2>/dev/null || {
             echo "notes_exist=false" >> $GITHUB_OUTPUT
             exit 0
           }
           echo "notes_exist=true" >> $GITHUB_OUTPUT
           
-      - name: Analyze commits for AI attestation
+      - name: Analyze commits for Leeroy attestation
         id: analyze
         run: |
           # Get the commit range for this PR
@@ -40,7 +40,7 @@ jobs:
           total=$(git rev-list --count ${BASE_SHA}..${HEAD_SHA})
           echo "total=${total}" >> $GITHUB_OUTPUT
           
-          # Count commits with AI attestation
+          # Count commits with Leeroy attestation
           attested=0
           attested_commits=""
           unattested_commits=""
@@ -49,7 +49,7 @@ jobs:
             short_sha="${sha:0:8}"
             subject=$(git log -1 --format="%s" ${sha})
             
-            if git notes --ref=ai-attestation show ${sha} &>/dev/null; then
+            if git notes --ref=leeroy show ${sha} &>/dev/null; then
               ((attested++)) || true
               attested_commits="${attested_commits}\n- \`${short_sha}\` ${subject}"
             else
@@ -75,7 +75,7 @@ jobs:
             fi
           else
             echo "has_ai=false" >> $GITHUB_OUTPUT
-            echo "label=no-ai-attestation" >> $GITHUB_OUTPUT
+            echo "label=no-leeroy" >> $GITHUB_OUTPUT
           fi
           
       - name: Extract attestation details
@@ -91,7 +91,7 @@ jobs:
           signature_summary=""
 
           for sha in $(git rev-list ${BASE_SHA}..${HEAD_SHA}); do
-            attestation=$(git notes --ref=ai-attestation show ${sha} 2>/dev/null || true)
+            attestation=$(git notes --ref=leeroy show ${sha} 2>/dev/null || true)
             if [[ -n "${attestation}" ]]; then
               model=$(echo "${attestation}" | grep "^Model:" | cut -d: -f2- | xargs)
               tool=$(echo "${attestation}" | grep "^Tool:" | cut -d: -f2- | xargs)
@@ -184,10 +184,10 @@ jobs:
             const promptsSummary = `${{ steps.details.outputs.prompts_summary }}`;
             const signatureSummary = `${{ steps.details.outputs.signature_summary }}`;
 
-            let body = '## 🤖 AI Transparency Report\n\n';
+            let body = '## 🤖 Leeroy Transparency Report\n\n';
 
             if (hasAi) {
-              body += `**${attested}/${total}** commits in this PR have AI attestation.\n\n`;
+              body += `**${attested}/${total}** commits in this PR have Leeroy attestation.\n\n`;
               body += `**Models used:** ${models}\n\n`;
 
               if (signatureSummary.trim()) {
@@ -206,14 +206,14 @@ jobs:
                 body += `### Prompt Preview\n${promptsSummary}\n\n`;
               }
 
-              body += `---\n*View full attestation details with: \`git notes --ref=ai-attestation show <commit>\`*`;
+              body += `---\n*View full attestation details with: \`git notes --ref=leeroy show <commit>\`*`;
             } else {
-              body += `No AI attestation found in this PR's commits.\n\n`;
+              body += `No Leeroy attestation found in this PR's commits.\n\n`;
               body += `This could mean:\n`;
               body += `- The code was written without AI assistance\n`;
               body += `- AI was used but attestation wasn't set up\n`;
               body += `- Attestation notes weren't pushed to the remote\n\n`;
-              body += `---\n*Set up AI attestation: [ai-attestation toolkit](https://github.com/your-org/ai-attestation)*`;
+              body += `---\n*Set up Leeroy attestation: [leeroy toolkit](https://github.com/your-org/leeroy)*`;
             }
             
             // Find and update existing comment or create new one
@@ -224,7 +224,7 @@ jobs:
             });
             
             const botComment = comments.data.find(c => 
-              c.user.type === 'Bot' && c.body.includes('AI Transparency Report')
+              c.user.type === 'Bot' && c.body.includes('Leeroy Transparency Report')
             );
             
             if (botComment) {

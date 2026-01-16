@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AI Attestation Toolkit - Transparent attribution for AI-assisted code contributions using git notes, hooks, and signatures.
+Leeroy Toolkit - Transparent attribution for AI-assisted code contributions using git notes, hooks, and signatures.
 
 **Core value:** Makes honest AI disclosure easy. See `docs/WHAT-THIS-GETS-US.md` for the full value proposition.
 
@@ -13,7 +13,7 @@ AI Attestation Toolkit - Transparent attribution for AI-assisted code contributi
 ## Architecture
 
 ### Session Tracking
-Located in `~/.ai-attestation/`:
+Located in `~/.leeroy/`:
 - `current-session.json` - Active AI session (prompts, files, timestamps)
 - `prompts.log` - Flat log of all prompts
 
@@ -32,12 +32,12 @@ Located in `~/.ai-attestation/`:
 - `git-post-checkout` - Clear stale sessions
 
 ### CLI Tools
-Installed to `~/.ai-attestation/bin/` via `install.sh`:
+Installed to `~/.leeroy/bin/` via `install.sh`:
 - `ai-log-prompt` - Log prompts to current session
-- `ai-attestation` - Query tool (list, show, stats, verify, fetch, push)
+- `leeroy` - Query tool (list, show, stats, verify, fetch, push)
 
 ### Attestation Storage
-- Stored as **git notes** under `refs/notes/ai-attestation`
+- Stored as **git notes** under `refs/notes/leeroy`
 - Attached to commit SHAs
 - Pushed/fetched independently from commits
 
@@ -69,10 +69,10 @@ Attestations are cryptographically signed with a two-layer approach:
 
 **Layer 1: Tool Signature**
 - Attestations are signed with an ed25519 toolkit key
-- Key generated on first use: `~/.ai-attestation/toolkit.key`
+- Key generated on first use: `~/.leeroy/toolkit.key`
 - Public key fingerprint included in attestation for transparency
 - Raises the bar for forgery - can't hand-craft attestations
-- Verified with `ai-attestation verify <commit>`
+- Verified with `leeroy verify <commit>`
 
 **Layer 2: Contributor Signature**
 - Standard git commit signing (GPG/SSH)
@@ -90,22 +90,22 @@ Together, these provide accountability and authenticity.
 ./install.sh
 
 # Add to PATH
-export PATH="${PATH}:${HOME}/.ai-attestation/bin"
+export PATH="${PATH}:${HOME}/.leeroy/bin"
 
 # Test session tracking
-~/.ai-attestation/hooks/session-tracker.sh init
-~/.ai-attestation/hooks/session-tracker.sh file "test.txt" modified
-~/.ai-attestation/hooks/session-tracker.sh prompt "test prompt"
-~/.ai-attestation/hooks/session-tracker.sh get
+~/.leeroy/hooks/session-tracker.sh init
+~/.leeroy/hooks/session-tracker.sh file "test.txt" modified
+~/.leeroy/hooks/session-tracker.sh prompt "test prompt"
+~/.leeroy/hooks/session-tracker.sh get
 
 # Test attestation
 git commit -m "test"
-git notes --ref=ai-attestation show HEAD
+git notes --ref=leeroy show HEAD
 
 # Test CLI
-ai-attestation list
-ai-attestation show HEAD
-ai-attestation stats
+leeroy list
+leeroy show HEAD
+leeroy stats
 ```
 
 ### Key Files
@@ -139,9 +139,9 @@ ai-attestation stats
 ## Important Implementation Details
 
 ### Git Notes Quirks
-- Notes stored in `refs/notes/ai-attestation` (separate from commits)
-- Must explicitly push: `git push origin refs/notes/ai-attestation`
-- Must explicitly fetch: `git fetch origin refs/notes/ai-attestation:refs/notes/ai-attestation`
+- Notes stored in `refs/notes/leeroy` (separate from commits)
+- Must explicitly push: `git push origin refs/notes/leeroy`
+- Must explicitly fetch: `git fetch origin refs/notes/leeroy:refs/notes/leeroy`
 - `git notes add` fails if note exists; use `git notes append` or handle failure
 - Post-commit hook tries `add`, falls back to `append` (line 71-72)
 
@@ -160,14 +160,14 @@ Expected in `~/.claude/settings.json`:
 {
   "hooks": {
     "UserPromptSubmit": [{
-      "command": "$HOME/.ai-attestation/hooks/capture-prompt.sh"
+      "command": "$HOME/.leeroy/hooks/capture-prompt.sh"
     }],
     "PostToolUse": [{
       "matcher": "write_to_file|create_file|str_replace|edit_file",
-      "command": "$HOME/.ai-attestation/hooks/session-tracker.sh file \"$TOOL_ARG_PATH\" modified"
+      "command": "$HOME/.leeroy/hooks/session-tracker.sh file \"$TOOL_ARG_PATH\" modified"
     }],
     "PostCommit": [{
-      "command": "$HOME/.ai-attestation/hooks/post-commit-attestation.sh"
+      "command": "$HOME/.leeroy/hooks/post-commit-attestation.sh"
     }]
   }
 }
@@ -219,13 +219,13 @@ Git hooks now enable attestation regardless of commit method (CLI, IDE, GUI), no
 - ✅ `hooks/git-post-commit` - Calls post-commit-attestation.sh reliably
 - ✅ `hooks/git-pre-push` - Auto-pushes attestation notes during git push
 - ✅ `hooks/git-post-checkout` - Clears sessions on branch switch
-- ✅ `install.sh` - Copies git hooks to `~/.ai-attestation/git-hooks/`
-- ✅ `ai-attestation install-hooks` - Per-repo installation command
+- ✅ `install.sh` - Copies git hooks to `~/.leeroy/git-hooks/`
+- ✅ `leeroy install-hooks` - Per-repo installation command
 - ✅ Tested with test repository
 
 **How it works:**
-- Hooks installed per-repository via `ai-attestation install-hooks`
-- Symlinks created in `.git/hooks/` pointing to `~/.ai-attestation/git-hooks/`
+- Hooks installed per-repository via `leeroy install-hooks`
+- Symlinks created in `.git/hooks/` pointing to `~/.leeroy/git-hooks/`
 - Works with any commit method: CLI `git commit`, IDE integrations, GUI clients
 - Automatic note pushing during `git push` (no manual push needed)
 - Session cleanup prevents contamination across branches
@@ -233,7 +233,7 @@ Git hooks now enable attestation regardless of commit method (CLI, IDE, GUI), no
 **Usage:**
 ```bash
 cd /path/to/your/repo
-ai-attestation install-hooks
+leeroy install-hooks
 ```
 
 ### ✅ Priority 2: Signing (COMPLETED)
@@ -245,7 +245,7 @@ Two-layer signature system as described in `docs/WHAT-THIS-GETS-US.md`:
 **Layer 1: Tool Signature** ✅
 - Attestations signed with ed25519 toolkit key
 - Key generated automatically on first use
-- Stored at `~/.ai-attestation/toolkit.key` (private)
+- Stored at `~/.leeroy/toolkit.key` (private)
 - Public key fingerprint included in attestation
 - Raises bar for forgery - can't hand-craft attestations
 
@@ -258,7 +258,7 @@ Two-layer signature system as described in `docs/WHAT-THIS-GETS-US.md`:
 **Implementation:**
 - ✅ `hooks/sign-attestation.sh` - Sign and verify with toolkit key
 - ✅ Updated `post-commit-attestation.sh` to sign before attaching
-- ✅ `ai-attestation verify` checks both tool and commit signatures
+- ✅ `leeroy verify` checks both tool and commit signatures
 - ✅ GitHub Action shows signature status in PR comments
 
 **Testing completed:**

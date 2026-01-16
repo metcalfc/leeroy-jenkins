@@ -1,5 +1,5 @@
 # User installation directory (not the repo itself)
-# Users install to ~/.ai-attestation, not tracked here
+# Users install to ~/.leeroy, not tracked here
 
 # Temporary files
 *.tmp

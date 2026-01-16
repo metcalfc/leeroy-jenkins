@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# AI Attestation Pre-Commit Hook
+# Leeroy Post-Commit Hook
 # Attaches AI session metadata to the commit as a git note
 #
 # This runs after the commit is created (post-commit) to attach the note.
@@ -11,14 +11,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SESSION_TRACKER="${SCRIPT_DIR}/session-tracker.sh"
 SIGN_ATTESTATION="${SCRIPT_DIR}/sign-attestation.sh"
-ATTESTATION_REF="refs/notes/ai-attestation"
+ATTESTATION_REF="refs/notes/leeroy"
 
 # Get session data
 session_data=$("${SESSION_TRACKER}" get)
 
 # Check if there's an active session with content
 if [[ "${session_data}" == "{}" ]]; then
-    echo "No AI session data to attach" >&2
+    echo "No Leeroy session data to attach" >&2
     exit 0
 fi
 
@@ -27,7 +27,7 @@ files_count=$(echo "${session_data}" | jq '.files_modified | length')
 prompts_count=$(echo "${session_data}" | jq '.prompts | length')
 
 if [[ "${files_count}" -eq 0 ]] && [[ "${prompts_count}" -eq 0 ]]; then
-    echo "Empty AI session, skipping attestation" >&2
+    echo "Empty Leeroy session, skipping attestation" >&2
     exit 0
 fi
 
@@ -72,10 +72,11 @@ attestation=$(format_attestation "${session_data}")
 signed_attestation=$(echo "${attestation}" | "${SIGN_ATTESTATION}" sign)
 
 # Attach as git note
-echo "${signed_attestation}" | git notes --ref=ai-attestation add -F - "${commit_sha}" 2>/dev/null || \
-    echo "${signed_attestation}" | git notes --ref=ai-attestation append -F - "${commit_sha}"
+echo "${signed_attestation}" | git notes --ref=leeroy add -F - "${commit_sha}" 2>/dev/null || \
+    echo "${signed_attestation}" | git notes --ref=leeroy append -F - "${commit_sha}"
 
-echo "✓ AI attestation attached to commit ${commit_sha:0:8}" >&2
+echo "🐔 Leeroy attestation attached to commit ${commit_sha:0:8}" >&2
+echo "   At least you have attestation." >&2
 
 # Show a preview
 echo "" >&2

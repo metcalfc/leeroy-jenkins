@@ -1,4 +1,4 @@
-# What AI Attestation Gets Us
+# What Leeroy Gets Us
 
 ## The Core Problem
 
@@ -34,7 +34,7 @@ Date: 2025-01-16
 
     Fix null check in parser
 
-[ai-attestation]
+[leeroy]
 Model: claude-sonnet-4-20250514
 Prompts:
   [14:20] fix the null check in parser.ts
@@ -55,7 +55,7 @@ Now the maintainer knows:
 | Attached to commits | Survives rebases, cherry-picks, merges |
 | Part of git itself | No GitHub/GitLab dependency |
 | Independent push/fetch | Can be managed separately from code |
-| Standard git queries | `git log --notes=ai-attestation` just works |
+| Standard git queries | `git log --notes=leeroy` just works |
 | Non-polluting | Doesn't clutter commit messages |
 
 Notes are the right primitive because they're portable. If you move repos, change hosts, or fork—the attestation follows the commits.
@@ -68,7 +68,7 @@ Signing creates accountability, but with important caveats about what each layer
 
 ### Layer 1: Tool Signature (Weak but Useful)
 
-**What it says:** "This attestation was created by ai-attestation toolkit v1.0"
+**What it says:** "This attestation was created by leeroy toolkit v1.0"
 
 **Value:** Proves the contributor used the standard toolkit, not a hand-crafted fake.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Test runner for AI Attestation Toolkit
+# Test runner for Leeroy Toolkit
 
 cd "$(dirname "$0")"
 
@@ -11,7 +11,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo "🧪 Running AI Attestation Toolkit Tests"
+echo "🧪 Running Leeroy Toolkit Tests"
 echo ""
 
 # Check if bats is installed

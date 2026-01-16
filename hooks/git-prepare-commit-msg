@@ -12,7 +12,7 @@ set -e
 COMMIT_MSG_FILE="$1"
 COMMIT_SOURCE="$2"
 
-SESSION_FILE="${HOME}/.ai-attestation/current-session.json"
+SESSION_FILE="${HOME}/.leeroy/current-session.json"
 
 # Only inject summary for new commits (not merge, squash, amend)
 if [[ -n "$COMMIT_SOURCE" && "$COMMIT_SOURCE" != "message" ]]; then

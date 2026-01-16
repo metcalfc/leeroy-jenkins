@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Sign AI attestations with ed25519 toolkit key
+# Sign Leeroy attestations with ed25519 toolkit key
 
-AI_DIR="${HOME}/.ai-attestation"
-PRIVATE_KEY="${AI_DIR}/toolkit.key"
-PUBLIC_KEY="${AI_DIR}/toolkit.pub"
-FINGERPRINT_FILE="${AI_DIR}/toolkit.fingerprint"
+LEEROY_DIR="${HOME}/.leeroy"
+PRIVATE_KEY="${LEEROY_DIR}/toolkit.key"
+PUBLIC_KEY="${LEEROY_DIR}/toolkit.pub"
+FINGERPRINT_FILE="${LEEROY_DIR}/toolkit.fingerprint"
 
 # Generate ed25519 keypair if it doesn't exist
 generate_keys() {
@@ -54,7 +54,7 @@ sign_attestation() {
 
     # Sign with ed25519 private key (use temp file for reliable binary handling)
     local tmpfile
-    tmpfile=$(mktemp -t ai-attestation-sign.XXXXXX)
+    tmpfile=$(mktemp -t leeroy-sign.XXXXXX)
 
     # Ensure cleanup on exit
     cleanup_sign() {
@@ -101,8 +101,8 @@ verify_attestation() {
 
     # Verify signature using public key (use temp files for reliable binary handling)
     local content_file sig_file
-    content_file=$(mktemp -t ai-attestation-verify-content.XXXXXX)
-    sig_file=$(mktemp -t ai-attestation-verify-sig.XXXXXX)
+    content_file=$(mktemp -t leeroy-verify-content.XXXXXX)
+    sig_file=$(mktemp -t leeroy-verify-sig.XXXXXX)
 
     # Ensure cleanup on exit
     cleanup_verify() {

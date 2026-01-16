@@ -1,23 +1,23 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Claude Code Hooks Configuration for AI Attestation",
+  "title": "Claude Code Hooks Configuration for Leeroy",
   "description": "Add these hooks to your ~/.claude/settings.json",
-  
+
   "_comment": "Copy the 'hooks' section into your existing Claude Code settings",
-  
+
   "hooks": {
     "PostToolUse": [
       {
         "matcher": "write_to_file|create_file|str_replace|edit_file",
-        "command": "$AI_ATTESTATION_DIR/hooks/session-tracker.sh file \"$TOOL_ARG_PATH\" modified"
+        "command": "$LEEROY_DIR/hooks/session-tracker.sh file \"$TOOL_ARG_PATH\" modified"
       }
     ],
     "PostCommit": [
       {
-        "command": "$AI_ATTESTATION_DIR/hooks/post-commit-attestation.sh"
+        "command": "$LEEROY_DIR/hooks/post-commit-attestation.sh"
       }
     ]
   },
-  
-  "_environment_note": "Set AI_ATTESTATION_DIR to your installation path, or the install script will configure this for you"
+
+  "_environment_note": "Set LEEROY_DIR to your installation path, or the install script will configure this for you"
 }

@@ -10,7 +10,7 @@
 set -e
 
 # Path to attestation script
-ATTESTATION_SCRIPT="${HOME}/.ai-attestation/hooks/post-commit-attestation.sh"
+ATTESTATION_SCRIPT="${HOME}/.leeroy/hooks/post-commit-attestation.sh"
 
 # Only run if script exists
 if [[ ! -x "$ATTESTATION_SCRIPT" ]]; then

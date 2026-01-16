@@ -8,7 +8,7 @@ Working:
 - ✅ Claude Code UserPromptSubmit hook (automatic prompt capture)
 - ✅ Claude Code PostCommit hook (attaches attestation)
 - ✅ Git hooks (prepare-commit-msg, post-commit, pre-push, post-checkout)
-- ✅ CLI tools (ai-log-prompt, ai-attestation, install-hooks)
+- ✅ CLI tools (ai-log-prompt, leeroy, install-hooks)
 - ✅ GitHub Action (labels PRs, shows prompts)
 
 Limitations:
@@ -43,7 +43,7 @@ user_text=$(echo "$prompt_json" | jq -r '.text // .message // .content')
 
 # Log to session
 if [[ -n "$user_text" ]]; then
-    ~/.ai-attestation/hooks/session-tracker.sh prompt "$user_text"
+    ~/.leeroy/hooks/session-tracker.sh prompt "$user_text"
 fi
 ```
 
@@ -52,14 +52,14 @@ fi
 {
   "hooks": {
     "UserPromptSubmit": [{
-      "command": "$HOME/.ai-attestation/hooks/capture-prompt.sh"
+      "command": "$HOME/.leeroy/hooks/capture-prompt.sh"
     }],
     "PostToolUse": [{
       "matcher": "write_to_file|create_file|str_replace|edit_file",
-      "command": "$HOME/.ai-attestation/hooks/session-tracker.sh file \"$TOOL_ARG_PATH\" modified"
+      "command": "$HOME/.leeroy/hooks/session-tracker.sh file \"$TOOL_ARG_PATH\" modified"
     }],
     "PostCommit": [{
-      "command": "$HOME/.ai-attestation/hooks/post-commit-attestation.sh"
+      "command": "$HOME/.leeroy/hooks/post-commit-attestation.sh"
     }]
   }
 }
@@ -97,7 +97,7 @@ hooks/git-post-checkout
 **Implementation:**
 
 `hooks/git-prepare-commit-msg`:
-- Read `~/.ai-attestation/current-session.json`
+- Read `~/.leeroy/current-session.json`
 - If session exists, inject summary into commit message:
   ```
   # ──────────────────────────────────────
@@ -113,8 +113,8 @@ hooks/git-post-checkout
 - More reliable than Claude's PostCommit (runs regardless of commit method)
 
 `hooks/git-pre-push`:
-- Check if local notes exist: `git notes --ref=ai-attestation list`
-- If yes, auto-push: `git push origin refs/notes/ai-attestation`
+- Check if local notes exist: `git notes --ref=leeroy list`
+- If yes, auto-push: `git push origin refs/notes/leeroy`
 - Show: "🤖 Pushing N AI attestation note(s)..."
 
 `hooks/git-post-checkout`:
@@ -125,22 +125,22 @@ hooks/git-post-checkout
 **Installation:**
 
 Update `install.sh` to:
-1. Create git hook templates in `~/.ai-attestation/git-hooks/`
-2. Add `ai-attestation install-hooks` command that symlinks hooks to `.git/hooks/`
+1. Create git hook templates in `~/.leeroy/git-hooks/`
+2. Add `leeroy install-hooks` command that symlinks hooks to `.git/hooks/`
 3. Per-repo opt-in (not global) for safety
 
 **Testing:**
 ```bash
 cd /tmp/test-repo
 git init
-ai-attestation install-hooks
+leeroy install-hooks
 
 # Test prepare-commit-msg
 ai-log-prompt "test"
 git commit  # Should see AI summary in editor
 
 # Test post-commit
-git notes --ref=ai-attestation show HEAD
+git notes --ref=leeroy show HEAD
 
 # Test pre-push
 git push  # Should auto-push notes
@@ -158,7 +158,7 @@ All files created and tested:
 - ✅ `hooks/git-pre-push` - Auto-pushes notes (with diff checking)
 - ✅ `hooks/git-post-checkout` - Clears sessions on branch switch
 - ✅ `install.sh` - Updated to copy git hooks and add install-hooks command
-- ✅ `ai-attestation install-hooks` - CLI command implemented
+- ✅ `leeroy install-hooks` - CLI command implemented
 - ✅ Testing completed with test repository
 - ✅ Documentation updated (README.md, CLAUDE.md, IMPLEMENTATION_PLAN.md)
 
@@ -169,7 +169,7 @@ All files created and tested:
 - Backup existing hooks before installation
 - Clear user feedback during installation
 
-**Next user action:** Run `./install.sh` and then `ai-attestation install-hooks` in desired repositories.
+**Next user action:** Run `./install.sh` and then `leeroy install-hooks` in desired repositories.
 
 ### ✅ 2. Signing (COMPLETED)
 
@@ -181,7 +181,7 @@ All files created and tested:
 
 **Key generation:**
 - ✅ On first run, generate ed25519 keypair
-- ✅ Store at `~/.ai-attestation/toolkit.key` (private) and `~/.ai-attestation/toolkit.pub` (public)
+- ✅ Store at `~/.leeroy/toolkit.key` (private) and `~/.leeroy/toolkit.pub` (public)
 - ✅ Include public key fingerprint in attestation
 
 **Signing:**
@@ -198,7 +198,7 @@ All files created and tested:
   ```
 
 **Verification:**
-- ✅ `ai-attestation verify <commit>` checks:
+- ✅ `leeroy verify <commit>` checks:
   1. Attestation format valid
   2. Tool signature valid using ed25519 public key
   3. Shows fingerprint for transparency
@@ -340,7 +340,7 @@ All tests passing ✅
    - Future: Use hook managers (husky, pre-commit)
 
 3. **Key management:** Where to store toolkit signing key?
-   - **Proposed:** `~/.ai-attestation/toolkit.key` (chmod 600)
+   - **Proposed:** `~/.leeroy/toolkit.key` (chmod 600)
    - **Risk:** Still on user machine, can be extracted
    - **Mitigation:** Document this limitation clearly
 

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #
-# AI Attestation Installation Script
+# Leeroy Installation Script
 # Sets up hooks for Claude Code and git
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALL_DIR="${HOME}/.ai-attestation"
+INSTALL_DIR="${HOME}/.leeroy"
 CLAUDE_SETTINGS="${HOME}/.claude/settings.json"
 
 # Check for required dependencies
@@ -48,7 +48,7 @@ check_dependencies() {
     fi
 }
 
-echo "🔧 Installing AI Attestation Toolkit"
+echo "🔧 Installing Leeroy Toolkit"
 echo ""
 
 # Check dependencies before proceeding
@@ -74,28 +74,28 @@ cp "${SCRIPT_DIR}/hooks/git-"* "${INSTALL_DIR}/git-hooks/" 2>/dev/null || true
 chmod +x "${INSTALL_DIR}/git-hooks/"* 2>/dev/null || true
 
 # Create convenience symlinks in bin
-ln -sf "${INSTALL_DIR}/hooks/log-prompt.sh" "${INSTALL_DIR}/bin/ai-log-prompt"
-ln -sf "${INSTALL_DIR}/hooks/session-tracker.sh" "${INSTALL_DIR}/bin/ai-session"
+ln -sf "${INSTALL_DIR}/hooks/log-prompt.sh" "${INSTALL_DIR}/bin/leeroy-log"
+ln -sf "${INSTALL_DIR}/hooks/session-tracker.sh" "${INSTALL_DIR}/bin/leeroy-session"
 
 # Create the query CLI
-cat > "${INSTALL_DIR}/bin/ai-attestation" << 'EOFCLI'
+cat > "${INSTALL_DIR}/bin/leeroy" << 'EOFCLI'
 #!/usr/bin/env bash
 #
-# AI Attestation Query CLI
-# Query and verify AI attestations in git history
+# Leeroy Query CLI
+# Query and verify Leeroy attestations in git history
 
 set -euo pipefail
 
-ATTESTATION_REF="refs/notes/ai-attestation"
+ATTESTATION_REF="refs/notes/leeroy"
 
 cmd_list() {
     local count="${1:-10}"
-    echo "Recent commits with AI attestation:"
+    echo "Recent commits with Leeroy attestation:"
     echo ""
-    
-    git log --notes=ai-attestation -n "${count}" --format="%h %s" 2>/dev/null | while read -r line; do
+
+    git log --notes=leeroy -n "${count}" --format="%h %s" 2>/dev/null | while read -r line; do
         sha="${line%% *}"
-        if git notes --ref=ai-attestation show "${sha}" &>/dev/null; then
+        if git notes --ref=leeroy show "${sha}" &>/dev/null; then
             echo "✓ ${line}"
         fi
     done
@@ -105,13 +105,13 @@ cmd_show() {
     local ref="${1:-HEAD}"
     local sha
     sha=$(git rev-parse "${ref}")
-    
-    if git notes --ref=ai-attestation show "${sha}" &>/dev/null; then
-        echo "AI Attestation for ${sha:0:8}:"
+
+    if git notes --ref=leeroy show "${sha}" &>/dev/null; then
+        echo "Leeroy Attestation for ${sha:0:8}:"
         echo ""
-        git notes --ref=ai-attestation show "${sha}"
+        git notes --ref=leeroy show "${sha}"
     else
-        echo "No AI attestation found for ${ref}" >&2
+        echo "No Leeroy attestation found for ${ref}" >&2
         exit 1
     fi
 }
@@ -119,19 +119,19 @@ cmd_show() {
 cmd_stats() {
     local total attested
     total=$(git rev-list HEAD --count 2>/dev/null || echo 0)
-    
+
     # Count commits with attestations
     attested=0
     while read -r sha; do
-        if git notes --ref=ai-attestation show "${sha}" &>/dev/null; then
+        if git notes --ref=leeroy show "${sha}" &>/dev/null; then
             ((attested++)) || true
         fi
     done < <(git rev-list HEAD 2>/dev/null)
-    
-    echo "AI Attestation Stats for $(basename "$(git rev-parse --show-toplevel)")"
+
+    echo "Leeroy Attestation Stats for $(basename "$(git rev-parse --show-toplevel)")"
     echo ""
     echo "Total commits: ${total}"
-    echo "AI-attested:   ${attested}"
+    echo "Leeroy-attested:   ${attested}"
     if [[ ${total} -gt 0 ]]; then
         local pct=$((attested * 100 / total))
         echo "Percentage:    ${pct}%"
@@ -143,13 +143,13 @@ cmd_verify() {
     local sha
     sha=$(git rev-parse "${ref}")
 
-    if ! git notes --ref=ai-attestation show "${sha}" &>/dev/null; then
+    if ! git notes --ref=leeroy show "${sha}" &>/dev/null; then
         echo "✗ No attestation found for ${ref}" >&2
         exit 1
     fi
 
     local attestation
-    attestation=$(git notes --ref=ai-attestation show "${sha}")
+    attestation=$(git notes --ref=leeroy show "${sha}")
 
     # Basic structure verification
     if echo "${attestation}" | grep -q "BEGIN AI ATTESTATION" && \
@@ -163,7 +163,7 @@ cmd_verify() {
     # Check for tool signature
     if echo "${attestation}" | grep -q "^Tool-Signature:"; then
         echo -n "  "
-        if echo "${attestation}" | "${HOME}/.ai-attestation/hooks/sign-attestation.sh" verify; then
+        if echo "${attestation}" | "${HOME}/.leeroy/hooks/sign-attestation.sh" verify; then
             # Signature verification succeeded, message already printed
             true
         else
@@ -195,14 +195,14 @@ cmd_verify() {
 }
 
 cmd_fetch() {
-    echo "Fetching AI attestation notes from origin..."
+    echo "Fetching Leeroy attestation notes from origin..."
     git fetch origin "${ATTESTATION_REF}:${ATTESTATION_REF}" 2>/dev/null || {
         echo "No attestation notes found on origin (this is normal for new repos)"
     }
 }
 
 cmd_push() {
-    echo "Pushing AI attestation notes to origin..."
+    echo "Pushing Leeroy attestation notes to origin..."
     git push origin "${ATTESTATION_REF}" || {
         echo "Failed to push attestation notes" >&2
         exit 1
@@ -224,7 +224,7 @@ cmd_install_hooks() {
     # Ensure hooks directory exists
     mkdir -p "${hooks_dir}"
 
-    local source_dir="${HOME}/.ai-attestation/git-hooks"
+    local source_dir="${HOME}/.leeroy/git-hooks"
     if [[ ! -d "${source_dir}" ]]; then
         echo "Error: Git hooks not found at ${source_dir}" >&2
         echo "Run the installation script first: ./install.sh" >&2
@@ -272,12 +272,13 @@ cmd_install_hooks() {
 
 cmd_help() {
     cat << EOF
-AI Attestation CLI
+🐔 Leeroy CLI
+   At least you have attestation.
 
-Usage: ai-attestation <command> [args]
+Usage: leeroy <command> [args]
 
 Commands:
-  list [n]          List recent commits with AI attestation (default: 10)
+  list [n]          List recent commits with Leeroy attestation (default: 10)
   show [ref]        Show attestation for a commit (default: HEAD)
   stats             Show attestation statistics for the repo
   verify [ref]      Verify attestation structure (default: HEAD)
@@ -287,11 +288,11 @@ Commands:
   help              Show this help message
 
 Examples:
-  ai-attestation install-hooks
-  ai-attestation list 20
-  ai-attestation show abc123
-  ai-attestation verify HEAD~3
-  ai-attestation stats
+  leeroy install-hooks
+  leeroy list 20
+  leeroy show abc123
+  leeroy verify HEAD~3
+  leeroy stats
 EOF
 }
 
@@ -307,7 +308,7 @@ case "${1:-help}" in
     help|*)        cmd_help ;;
 esac
 EOFCLI
-chmod +x "${INSTALL_DIR}/bin/ai-attestation"
+chmod +x "${INSTALL_DIR}/bin/leeroy"
 
 echo ""
 echo "✓ CLI tools installed"
@@ -375,7 +376,8 @@ fi
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "Installation complete!"
+echo "🐔 Installation complete!"
+echo "   At least you'll have attestation."
 echo ""
 echo "Add to your shell profile (.bashrc, .zshrc, etc.):"
 echo ""
@@ -383,14 +385,14 @@ echo "  export PATH=\"\${PATH}:${INSTALL_DIR}/bin\""
 echo ""
 echo "Then you can use:"
 echo ""
-echo "  ai-log-prompt \"your prompt here\"   # Log a prompt"
-echo "  ai-attestation list                 # List attested commits"
-echo "  ai-attestation show                 # Show attestation for HEAD"
-echo "  ai-attestation stats                # Repo statistics"
+echo "  leeroy-log \"your prompt here\"   # Log a prompt"
+echo "  leeroy list                      # List attested commits"
+echo "  leeroy show                      # Show attestation for HEAD"
+echo "  leeroy stats                     # Repo statistics"
 echo ""
 echo "Install git hooks (per repository):"
 echo "  cd /path/to/your/repo"
-echo "  ai-attestation install-hooks"
+echo "  leeroy install-hooks"
 echo ""
 echo "  This enables:"
 echo "  • AI summary in commit messages"

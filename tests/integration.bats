@@ -8,15 +8,15 @@ setup() {
     export HOME="$TEST_DIR"
 
     # Setup AI attestation directory
-    mkdir -p "$HOME/.ai-attestation"
-    mkdir -p "$HOME/.ai-attestation/bin"
-    mkdir -p "$HOME/.ai-attestation/hooks"
-    mkdir -p "$HOME/.ai-attestation/git-hooks"
+    mkdir -p "$HOME/.leeroy"
+    mkdir -p "$HOME/.leeroy/bin"
+    mkdir -p "$HOME/.leeroy/hooks"
+    mkdir -p "$HOME/.leeroy/git-hooks"
 
     # Copy scripts to test home
     REPO_ROOT="${BATS_TEST_DIRNAME}/.."
-    cp "$REPO_ROOT"/hooks/*.sh "$HOME/.ai-attestation/hooks/"
-    chmod +x "$HOME/.ai-attestation/hooks/"*.sh
+    cp "$REPO_ROOT"/hooks/*.sh "$HOME/.leeroy/hooks/"
+    chmod +x "$HOME/.leeroy/hooks/"*.sh
 
     # Create test git repository
     TEST_REPO="$TEST_DIR/test-repo"
@@ -26,33 +26,33 @@ setup() {
     git config user.email "test@example.com"
     git config user.name "Test User"
 
-    # Install the ai-attestation CLI tool (simplified version for testing)
-    cat > "$HOME/.ai-attestation/bin/ai-attestation" << 'EOF'
+    # Install the leeroy CLI tool (simplified version for testing)
+    cat > "$HOME/.leeroy/bin/leeroy" << 'EOF'
 #!/usr/bin/env bash
 case "${1:-}" in
     list)
         git log --all --pretty=format:"%H" | while read sha; do
-            if git notes --ref=ai-attestation show "$sha" &>/dev/null; then
+            if git notes --ref=leeroy show "$sha" &>/dev/null; then
                 echo "$sha"
             fi
         done
         ;;
     show)
-        git notes --ref=ai-attestation show "${2:-HEAD}"
+        git notes --ref=leeroy show "${2:-HEAD}"
         ;;
     verify)
-        attestation=$(git notes --ref=ai-attestation show "${2:-HEAD}" 2>/dev/null || echo "")
+        attestation=$(git notes --ref=leeroy show "${2:-HEAD}" 2>/dev/null || echo "")
         if [[ -z "$attestation" ]]; then
             echo "No attestation found"
             exit 1
         fi
-        echo "$attestation" | ~/.ai-attestation/hooks/sign-attestation.sh verify
+        echo "$attestation" | ~/.leeroy/hooks/sign-attestation.sh verify
         ;;
     stats)
         total=$(git log --all --pretty=format:"%H" | wc -l)
         attested=0
         git log --all --pretty=format:"%H" | while read sha; do
-            if git notes --ref=ai-attestation show "$sha" &>/dev/null; then
+            if git notes --ref=leeroy show "$sha" &>/dev/null; then
                 attested=$((attested + 1))
             fi
         done
@@ -60,15 +60,15 @@ case "${1:-}" in
         echo "AI-attested: ${attested:-0}"
         ;;
     *)
-        echo "Usage: ai-attestation {list|show|verify|stats}"
+        echo "Usage: leeroy {list|show|verify|stats}"
         exit 1
         ;;
 esac
 EOF
-    chmod +x "$HOME/.ai-attestation/bin/ai-attestation"
+    chmod +x "$HOME/.leeroy/bin/leeroy"
 
     # Add to PATH
-    export PATH="$HOME/.ai-attestation/bin:$PATH"
+    export PATH="$HOME/.leeroy/bin:$PATH"
 }
 
 teardown() {
@@ -81,24 +81,24 @@ teardown() {
     cd "$TEST_REPO"
 
     # Step 1: Initialize session (simulating Claude Code hook)
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" init
-    [ -f "$HOME/.ai-attestation/current-session.json" ]
+    "$HOME/.leeroy/hooks/session-tracker.sh" init
+    [ -f "$HOME/.leeroy/current-session.json" ]
 
     # Step 2: Simulate file modifications (Claude Code editing files)
     echo "test content" > test.txt
     git add test.txt
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" file "test.txt" created
+    "$HOME/.leeroy/hooks/session-tracker.sh" file "test.txt" created
 
     echo "more content" > test2.txt
     git add test2.txt
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" file "test2.txt" created
+    "$HOME/.leeroy/hooks/session-tracker.sh" file "test2.txt" created
 
     # Step 3: Log prompts
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" prompt "Add test files"
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" prompt "Add more content"
+    "$HOME/.leeroy/hooks/session-tracker.sh" prompt "Add test files"
+    "$HOME/.leeroy/hooks/session-tracker.sh" prompt "Add more content"
 
     # Verify session has data
-    session=$("$HOME/.ai-attestation/hooks/session-tracker.sh" get)
+    session=$("$HOME/.leeroy/hooks/session-tracker.sh" get)
     echo "$session" | jq -e '.files_modified | length == 2'
     echo "$session" | jq -e '.prompts | length == 2'
 
@@ -106,10 +106,10 @@ teardown() {
     git commit -m "Test commit"
 
     # Step 5: Create attestation (simulating post-commit hook)
-    "$HOME/.ai-attestation/hooks/post-commit-attestation.sh"
+    "$HOME/.leeroy/hooks/post-commit-attestation.sh"
 
     # Step 6: Verify attestation was attached as git note
-    attestation=$(git notes --ref=ai-attestation show HEAD)
+    attestation=$(git notes --ref=leeroy show HEAD)
     [ -n "$attestation" ]
 
     # Verify attestation structure
@@ -124,10 +124,10 @@ teardown() {
     echo "$attestation" | grep -q "END AI ATTESTATION"
 
     # Step 7: Verify session was cleared after commit
-    [ ! -f "$HOME/.ai-attestation/current-session.json" ]
+    [ ! -f "$HOME/.leeroy/current-session.json" ]
 
     # Step 8: Verify prompts.log was preserved
-    [ -f "$HOME/.ai-attestation/prompts.log" ]
+    [ -f "$HOME/.leeroy/prompts.log" ]
 }
 
 @test "integration: CLI list command shows attested commits" {
@@ -139,21 +139,21 @@ teardown() {
     git commit -m "Commit 1"
 
     # No attestation yet
-    list_output=$(ai-attestation list)
+    list_output=$(leeroy list)
     [ -z "$list_output" ]
 
     # Add attestation
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" init
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" file "file1.txt" modified
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" prompt "test"
+    "$HOME/.leeroy/hooks/session-tracker.sh" init
+    "$HOME/.leeroy/hooks/session-tracker.sh" file "file1.txt" modified
+    "$HOME/.leeroy/hooks/session-tracker.sh" prompt "test"
 
     echo "modified" >> file1.txt
     git add file1.txt
     git commit -m "Commit 2"
-    "$HOME/.ai-attestation/hooks/post-commit-attestation.sh"
+    "$HOME/.leeroy/hooks/post-commit-attestation.sh"
 
     # Should now show one commit
-    list_output=$(ai-attestation list)
+    list_output=$(leeroy list)
     [ -n "$list_output" ]
     [[ "$list_output" =~ [0-9a-f]{40} ]]
 }
@@ -162,17 +162,17 @@ teardown() {
     cd "$TEST_REPO"
 
     # Create attested commit
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" init
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" file "test.txt" created
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" prompt "Create test file"
+    "$HOME/.leeroy/hooks/session-tracker.sh" init
+    "$HOME/.leeroy/hooks/session-tracker.sh" file "test.txt" created
+    "$HOME/.leeroy/hooks/session-tracker.sh" prompt "Create test file"
 
     echo "content" > test.txt
     git add test.txt
     git commit -m "Add test file"
-    "$HOME/.ai-attestation/hooks/post-commit-attestation.sh"
+    "$HOME/.leeroy/hooks/post-commit-attestation.sh"
 
     # Show attestation
-    run ai-attestation show HEAD
+    run leeroy show HEAD
     [ "$status" -eq 0 ]
     [[ "$output" == *"BEGIN AI ATTESTATION"* ]]
     [[ "$output" == *"Create test file"* ]]
@@ -182,17 +182,17 @@ teardown() {
     cd "$TEST_REPO"
 
     # Create attested commit
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" init
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" file "test.txt" created
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" prompt "test"
+    "$HOME/.leeroy/hooks/session-tracker.sh" init
+    "$HOME/.leeroy/hooks/session-tracker.sh" file "test.txt" created
+    "$HOME/.leeroy/hooks/session-tracker.sh" prompt "test"
 
     echo "content" > test.txt
     git add test.txt
     git commit -m "Test"
-    "$HOME/.ai-attestation/hooks/post-commit-attestation.sh"
+    "$HOME/.leeroy/hooks/post-commit-attestation.sh"
 
     # Verify should pass
-    run ai-attestation verify HEAD
+    run leeroy verify HEAD
     [ "$status" -eq 0 ]
     [[ "$output" == *"Tool signature valid"* ]]
 }
@@ -201,33 +201,33 @@ teardown() {
     cd "$TEST_REPO"
 
     # First commit with attestation
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" init
-    session_id1=$(jq -r '.session_id' "$HOME/.ai-attestation/current-session.json")
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" file "file1.txt" created
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" prompt "First prompt"
+    "$HOME/.leeroy/hooks/session-tracker.sh" init
+    session_id1=$(jq -r '.session_id' "$HOME/.leeroy/current-session.json")
+    "$HOME/.leeroy/hooks/session-tracker.sh" file "file1.txt" created
+    "$HOME/.leeroy/hooks/session-tracker.sh" prompt "First prompt"
 
     echo "content1" > file1.txt
     git add file1.txt
     git commit -m "Commit 1"
-    "$HOME/.ai-attestation/hooks/post-commit-attestation.sh"
+    "$HOME/.leeroy/hooks/post-commit-attestation.sh"
 
     # Session should be cleared
-    [ ! -f "$HOME/.ai-attestation/current-session.json" ]
+    [ ! -f "$HOME/.leeroy/current-session.json" ]
 
     # Second commit with new session
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" init
-    session_id2=$(jq -r '.session_id' "$HOME/.ai-attestation/current-session.json")
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" file "file2.txt" created
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" prompt "Second prompt"
+    "$HOME/.leeroy/hooks/session-tracker.sh" init
+    session_id2=$(jq -r '.session_id' "$HOME/.leeroy/current-session.json")
+    "$HOME/.leeroy/hooks/session-tracker.sh" file "file2.txt" created
+    "$HOME/.leeroy/hooks/session-tracker.sh" prompt "Second prompt"
 
     echo "content2" > file2.txt
     git add file2.txt
     git commit -m "Commit 2"
-    "$HOME/.ai-attestation/hooks/post-commit-attestation.sh"
+    "$HOME/.leeroy/hooks/post-commit-attestation.sh"
 
     # Verify both commits have attestations
-    attestation1=$(git notes --ref=ai-attestation show HEAD~1)
-    attestation2=$(git notes --ref=ai-attestation show HEAD)
+    attestation1=$(git notes --ref=leeroy show HEAD~1)
+    attestation2=$(git notes --ref=leeroy show HEAD)
 
     [ -n "$attestation1" ]
     [ -n "$attestation2" ]
@@ -247,17 +247,17 @@ teardown() {
     cd "$TEST_REPO"
 
     # Start session and add first file
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" init
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" file "file1.txt" created
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" prompt "Add file1"
+    "$HOME/.leeroy/hooks/session-tracker.sh" init
+    "$HOME/.leeroy/hooks/session-tracker.sh" file "file1.txt" created
+    "$HOME/.leeroy/hooks/session-tracker.sh" prompt "Add file1"
 
     # Later, add another file to same session
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" file "file2.txt" created
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" prompt "Add file2"
+    "$HOME/.leeroy/hooks/session-tracker.sh" file "file2.txt" created
+    "$HOME/.leeroy/hooks/session-tracker.sh" prompt "Add file2"
 
     # Even later, add third file
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" file "file3.txt" created
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" prompt "Add file3"
+    "$HOME/.leeroy/hooks/session-tracker.sh" file "file3.txt" created
+    "$HOME/.leeroy/hooks/session-tracker.sh" prompt "Add file3"
 
     # Commit everything
     echo "c1" > file1.txt
@@ -265,10 +265,10 @@ teardown() {
     echo "c3" > file3.txt
     git add .
     git commit -m "Add multiple files"
-    "$HOME/.ai-attestation/hooks/post-commit-attestation.sh"
+    "$HOME/.leeroy/hooks/post-commit-attestation.sh"
 
     # Verify attestation has all files and prompts
-    attestation=$(git notes --ref=ai-attestation show HEAD)
+    attestation=$(git notes --ref=leeroy show HEAD)
 
     echo "$attestation" | grep -q "file1.txt"
     echo "$attestation" | grep -q "file2.txt"
@@ -287,17 +287,17 @@ teardown() {
     export CLAUDE_MODEL="claude-sonnet-4"
 
     # Create session and commit
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" init
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" file "test.txt" created
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" prompt "test"
+    "$HOME/.leeroy/hooks/session-tracker.sh" init
+    "$HOME/.leeroy/hooks/session-tracker.sh" file "test.txt" created
+    "$HOME/.leeroy/hooks/session-tracker.sh" prompt "test"
 
     echo "content" > test.txt
     git add test.txt
     git commit -m "Test"
-    "$HOME/.ai-attestation/hooks/post-commit-attestation.sh"
+    "$HOME/.leeroy/hooks/post-commit-attestation.sh"
 
     # Verify attestation includes environment data
-    attestation=$(git notes --ref=ai-attestation show HEAD)
+    attestation=$(git notes --ref=leeroy show HEAD)
     echo "$attestation" | grep -q "Tool: claude-code/1.2.3"
     echo "$attestation" | grep -q "Model: claude-sonnet-4"
 }
@@ -306,35 +306,35 @@ teardown() {
     cd "$TEST_REPO"
 
     # First session
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" init
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" prompt "First session prompt 1"
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" prompt "First session prompt 2"
+    "$HOME/.leeroy/hooks/session-tracker.sh" init
+    "$HOME/.leeroy/hooks/session-tracker.sh" prompt "First session prompt 1"
+    "$HOME/.leeroy/hooks/session-tracker.sh" prompt "First session prompt 2"
 
     echo "f1" > f1.txt
     git add f1.txt
     git commit -m "C1"
-    "$HOME/.ai-attestation/hooks/post-commit-attestation.sh"
+    "$HOME/.leeroy/hooks/post-commit-attestation.sh"
 
     # Second session
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" init
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" prompt "Second session prompt 1"
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" prompt "Second session prompt 2"
+    "$HOME/.leeroy/hooks/session-tracker.sh" init
+    "$HOME/.leeroy/hooks/session-tracker.sh" prompt "Second session prompt 1"
+    "$HOME/.leeroy/hooks/session-tracker.sh" prompt "Second session prompt 2"
 
     echo "f2" > f2.txt
     git add f2.txt
     git commit -m "C2"
-    "$HOME/.ai-attestation/hooks/post-commit-attestation.sh"
+    "$HOME/.leeroy/hooks/post-commit-attestation.sh"
 
     # Verify prompts.log has all prompts
-    [ -f "$HOME/.ai-attestation/prompts.log" ]
+    [ -f "$HOME/.leeroy/prompts.log" ]
 
-    grep -q "First session prompt 1" "$HOME/.ai-attestation/prompts.log"
-    grep -q "First session prompt 2" "$HOME/.ai-attestation/prompts.log"
-    grep -q "Second session prompt 1" "$HOME/.ai-attestation/prompts.log"
-    grep -q "Second session prompt 2" "$HOME/.ai-attestation/prompts.log"
+    grep -q "First session prompt 1" "$HOME/.leeroy/prompts.log"
+    grep -q "First session prompt 2" "$HOME/.leeroy/prompts.log"
+    grep -q "Second session prompt 1" "$HOME/.leeroy/prompts.log"
+    grep -q "Second session prompt 2" "$HOME/.leeroy/prompts.log"
 
     # Should have 4 total prompts
-    prompt_count=$(grep -c "^\[" "$HOME/.ai-attestation/prompts.log")
+    prompt_count=$(grep -c "^\[" "$HOME/.leeroy/prompts.log")
     [ "$prompt_count" -eq 4 ]
 }
 
@@ -342,24 +342,24 @@ teardown() {
     cd "$TEST_REPO"
 
     # Create valid attested commit
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" init
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" file "test.txt" created
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" prompt "test"
+    "$HOME/.leeroy/hooks/session-tracker.sh" init
+    "$HOME/.leeroy/hooks/session-tracker.sh" file "test.txt" created
+    "$HOME/.leeroy/hooks/session-tracker.sh" prompt "test"
 
     echo "content" > test.txt
     git add test.txt
     git commit -m "Test"
-    "$HOME/.ai-attestation/hooks/post-commit-attestation.sh"
+    "$HOME/.leeroy/hooks/post-commit-attestation.sh"
 
     # Tamper with the attestation
-    attestation=$(git notes --ref=ai-attestation show HEAD)
+    attestation=$(git notes --ref=leeroy show HEAD)
     tampered=$(echo "$attestation" | sed 's/test.txt/hacked.txt/')
 
     # Replace note with tampered version
-    git notes --ref=ai-attestation add -f -m "$tampered" HEAD
+    git notes --ref=leeroy add -f -m "$tampered" HEAD
 
     # Verification should now fail
-    run ai-attestation verify HEAD
+    run leeroy verify HEAD
     [ "$status" -eq 1 ]
 }
 
@@ -371,17 +371,17 @@ teardown() {
     unset CLAUDE_MODEL
 
     # Should still work
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" init
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" file "test.txt" created
-    "$HOME/.ai-attestation/hooks/session-tracker.sh" prompt "test"
+    "$HOME/.leeroy/hooks/session-tracker.sh" init
+    "$HOME/.leeroy/hooks/session-tracker.sh" file "test.txt" created
+    "$HOME/.leeroy/hooks/session-tracker.sh" prompt "test"
 
     echo "content" > test.txt
     git add test.txt
     git commit -m "Test"
-    "$HOME/.ai-attestation/hooks/post-commit-attestation.sh"
+    "$HOME/.leeroy/hooks/post-commit-attestation.sh"
 
     # Should have attestation
-    attestation=$(git notes --ref=ai-attestation show HEAD)
+    attestation=$(git notes --ref=leeroy show HEAD)
     [ -n "$attestation" ]
     echo "$attestation" | grep -q "BEGIN AI ATTESTATION"
 }

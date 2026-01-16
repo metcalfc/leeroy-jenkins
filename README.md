@@ -1,4 +1,6 @@
-# AI Attestation Toolkit
+# Leeroy
+
+**Don't Leeroy the open source ecosystem. At least you'll have attestation.**
 
 Transparent attribution for AI-assisted code contributions.
 
@@ -27,7 +29,7 @@ Attestations include two levels of signatures for authenticity:
 **Layer 1: Tool Signature** 🔐
 - Toolkit signs each attestation with an ed25519 key (auto-generated on first use)
 - Raises the bar for forgery - can't hand-craft attestations
-- Verified with `ai-attestation verify <commit>`
+- Verified with `leeroy verify <commit>`
 
 **Layer 2: Contributor Signature** ✍️
 - Standard git commit signing (GPG/SSH)
@@ -43,7 +45,7 @@ This is a **proof of concept** demonstrating the core ideas. The following limit
 
 ### 1. Session File Race Conditions
 
-**Issue**: The session JSON file (`~/.ai-attestation/current-session.json`) can be corrupted if multiple processes modify it simultaneously.
+**Issue**: The session JSON file (`~/.leeroy/current-session.json`) can be corrupted if multiple processes modify it simultaneously.
 
 **Impact**: Rare - only occurs if Claude makes rapid edits that trigger hooks at the exact same time.
 
@@ -51,17 +53,17 @@ This is a **proof of concept** demonstrating the core ideas. The following limit
 
 ### 2. Unbounded Log Growth
 
-**Issue**: The `~/.ai-attestation/prompts.log` file grows indefinitely with no rotation.
+**Issue**: The `~/.leeroy/prompts.log` file grows indefinitely with no rotation.
 
 **Impact**: Disk usage increases over time. After months of use, could be several MB.
 
 **Workaround**: Manually delete or archive the file periodically:
 ```bash
 # Archive old prompts
-mv ~/.ai-attestation/prompts.log ~/.ai-attestation/prompts.$(date +%Y%m%d).log
+mv ~/.leeroy/prompts.log ~/.leeroy/prompts.$(date +%Y%m%d).log
 
 # Or simply clear it
-rm ~/.ai-attestation/prompts.log
+rm ~/.leeroy/prompts.log
 ```
 
 **Production fix**: Implement log rotation (logrotate or built-in size limits).
@@ -84,20 +86,20 @@ rm ~/.ai-attestation/prompts.log
 
 **Workaround**: Clear active sessions before updating:
 ```bash
-rm ~/.ai-attestation/current-session.json
+rm ~/.leeroy/current-session.json
 ```
 
 **Production fix**: Add `Version: 1.0` field to session JSON and attestation format, implement migration logic.
 
 ### 5. Single Installation Path
 
-**Issue**: Installation path is hardcoded to `~/.ai-attestation`.
+**Issue**: Installation path is hardcoded to `~/.leeroy`.
 
 **Impact**: Cannot have multiple configurations or per-project customization.
 
 **Workaround**: None currently.
 
-**Production fix**: Support `AI_ATTESTATION_DIR` environment variable or per-repo config.
+**Production fix**: Support `LEEROY_DIR` environment variable or per-repo config.
 
 ### 6. No Session Rollback
 
@@ -121,7 +123,7 @@ rm ~/.ai-attestation/current-session.json
 
 **Issue**: ~~Git pre-push hook used a fixed temp ref name that could collide.~~
 
-**Status**: ✅ **Fixed** - Now uses PID-based unique temp ref: `refs/notes/ai-attestation-push-compare-$$`
+**Status**: ✅ **Fixed** - Now uses PID-based unique temp ref: `refs/notes/leeroy-push-compare-$$`
 
 ### What This POC Demonstrates
 
@@ -137,21 +139,21 @@ These limitations are **documented trade-offs** for a proof of concept focused o
 ## Installation
 
 ```bash
-git clone https://github.com/your-org/ai-attestation
-cd ai-attestation
+git clone https://github.com/your-org/leeroy
+cd leeroy
 ./install.sh
 ```
 
 Add to your shell profile:
 
 ```bash
-export PATH="${PATH}:${HOME}/.ai-attestation/bin"
+export PATH="${PATH}:${HOME}/.leeroy/bin"
 ```
 
 This installs:
-- Hooks to `~/.ai-attestation/hooks/`
-- Git hooks to `~/.ai-attestation/git-hooks/`
-- CLI tools to `~/.ai-attestation/bin/`
+- Hooks to `~/.leeroy/hooks/`
+- Git hooks to `~/.leeroy/git-hooks/`
+- CLI tools to `~/.leeroy/bin/`
 - Claude Code hook configuration to `~/.claude/settings.json`
 
 ### Per-Repository Setup (Optional but Recommended)
@@ -160,7 +162,7 @@ Install git hooks in each repository where you want automatic attestation:
 
 ```bash
 cd /path/to/your/repo
-ai-attestation install-hooks
+leeroy install-hooks
 ```
 
 This enables attestation **regardless of commit method** (CLI, IDE, GUI). Without this, attestations only work when committing through Claude Code.
@@ -183,8 +185,8 @@ Just work with Claude normally. Everything is logged automatically.
 
 **Optional manual logging** (for non-Claude work or additional context):
 ```bash
-ai-log-prompt "researched OAuth flow before asking Claude"
-ai-log-prompt "manually tweaked regex after Claude's suggestion"
+leeroy-log "researched OAuth flow before asking Claude"
+leeroy-log "manually tweaked regex after Claude's suggestion"
 ```
 
 ### Committing
@@ -194,7 +196,7 @@ Commit from anywhere - CLI, IDE, or GUI. The attestation is attached automatical
 
 ```bash
 git commit -m "Fix null check in parser"
-# Output: ✓ AI attestation attached to commit abc1234
+# Output: ✓ Leeroy attestation attached to commit abc1234
 ```
 
 **Without git hooks**:
@@ -208,25 +210,25 @@ Git notes are stored separately from commits.
 
 **Without git hooks**: Push manually:
 ```bash
-ai-attestation push
+leeroy push
 # Or manually:
-git push origin refs/notes/ai-attestation
+git push origin refs/notes/leeroy
 ```
 
 ### Querying Attestations
 
 ```bash
-# List AI-attested commits
-ai-attestation list
+# List Leeroy-attested commits
+leeroy list
 
 # Show attestation for a commit
-ai-attestation show abc1234
+leeroy show abc1234
 
 # Repository statistics
-ai-attestation stats
+leeroy stats
 
 # Verify attestation format
-ai-attestation verify HEAD
+leeroy verify HEAD
 ```
 
 ## Attestation Format
@@ -252,15 +254,15 @@ Human-Review-Attested: true
 -----END AI ATTESTATION-----
 ```
 
-Stored as git notes under `refs/notes/ai-attestation`.
+Stored as git notes under `refs/notes/leeroy`.
 
 ## GitHub Integration
 
 Copy `.github/workflows/ai-transparency.yml` to your repo. PRs will be labeled:
 
-- `ai-assisted` - All commits have AI attestation
+- `ai-assisted` - All commits have Leeroy attestation
 - `ai-assisted-partial` - Some commits have attestation
-- `no-ai-attestation` - No attestation found
+- `no-leeroy` - No attestation found
 
 The workflow posts a comment showing:
 - Models used
@@ -272,7 +274,7 @@ Example:
 ```
 ## 🤖 AI Transparency Report
 
-**2/3** commits in this PR have AI attestation.
+**2/3** commits in this PR have Leeroy attestation.
 
 **Models used:** claude-sonnet-4-20250514
 
@@ -296,17 +298,17 @@ Example:
 Before reviewing a PR, fetch the attestation notes:
 
 ```bash
-git fetch origin refs/notes/ai-attestation:refs/notes/ai-attestation
+git fetch origin refs/notes/leeroy:refs/notes/leeroy
 ```
 
 ### Viewing Attestations
 
 ```bash
 # See attestations in log
-git log --notes=ai-attestation
+git log --notes=leeroy
 
 # Check specific commit
-git notes --ref=ai-attestation show <commit>
+git notes --ref=leeroy show <commit>
 ```
 
 ### Policy Example
@@ -318,7 +320,7 @@ Add to your CONTRIBUTING.md:
 
 We welcome AI-assisted contributions! To help us review effectively:
 
-1. Install the [ai-attestation toolkit](...)
+1. Install the [leeroy toolkit](...)
 2. Log your prompts during AI sessions
 3. Push attestation notes with your PR
 
@@ -392,7 +394,7 @@ All tests pass on Linux. See `IMPLEMENTATION_PLAN.md` for test implementation de
 
 ## Contributing
 
-PRs welcome. Please use the ai-attestation toolkit when contributing.
+PRs welcome. Please use the leeroy toolkit when contributing.
 
 For development guidance, see [`CLAUDE.md`](CLAUDE.md).
 

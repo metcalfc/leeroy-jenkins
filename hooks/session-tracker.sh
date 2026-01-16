@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# AI Attestation Session Tracker
+# Leeroy Session Tracker
 # Logs AI-assisted editing activity for later attestation
 #
 # This script is called by Claude Code hooks to track:
@@ -12,12 +12,12 @@
 
 set -euo pipefail
 
-ATTESTATION_DIR="${HOME}/.ai-attestation"
-SESSION_FILE="${ATTESTATION_DIR}/current-session.json"
-PROMPT_LOG="${ATTESTATION_DIR}/prompts.log"
+LEEROY_DIR="${HOME}/.leeroy"
+SESSION_FILE="${LEEROY_DIR}/current-session.json"
+PROMPT_LOG="${LEEROY_DIR}/prompts.log"
 
 # Ensure directory exists
-mkdir -p "${ATTESTATION_DIR}"
+mkdir -p "${LEEROY_DIR}"
 
 # Initialize session if needed
 init_session() {
