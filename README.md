@@ -6,6 +6,8 @@ Transparent attribution for AI-assisted code contributions.
 
 ![Leeroy Demo](demo.gif)
 
+[🗡️ Watch the original Leeroy here. 🐔](https://www.youtube.com/watch?v=mLyOj_QD4a4)
+
 ---
 
 ## ⚠️ PROOF OF CONCEPT - NOT PRODUCTION READY
