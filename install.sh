@@ -196,7 +196,7 @@ cmd_verify() {
 
 cmd_fetch() {
     echo "Fetching Leeroy attestation notes from origin..."
-    git fetch origin "${ATTESTATION_REF}:${ATTESTATION_REF}" 2>/dev/null || {
+    git fetch origin "+${ATTESTATION_REF}:${ATTESTATION_REF}" 2>/dev/null || {
         echo "No attestation notes found on origin (this is normal for new repos)"
     }
 }
