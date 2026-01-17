@@ -4,6 +4,20 @@
 
 Transparent attribution for AI-assisted code contributions.
 
+---
+
+## ⚠️ PROOF OF CONCEPT - NOT PRODUCTION READY
+
+This is a **demonstration** of what transparent AI attribution could look like with proper tooling and platform support.
+
+**Critical Limitation:** Git notes are attached to commit SHAs. Any operation that changes SHAs (rebase, amend, cherry-pick, etc.) will orphan the attestations. This makes the current implementation **unsuitable for real-world use** where rebasing is standard practice.
+
+**What this demonstrates:** The value of transparent AI attribution and what it would take to implement it properly. Real support would require native integration in Git, GitHub, and other platforms.
+
+See [Known Limitations](#known-limitations) for full details.
+
+---
+
 ## The Problem
 
 Open source maintainers face a flood of AI-generated pull requests with no way to understand context, intent, or effort. Was this thoughtful contribution or drive-by AI spam?
@@ -43,7 +57,63 @@ Together, these provide accountability and authenticity.
 
 This is a **proof of concept** demonstrating the core ideas. The following limitations are acceptable for a POC but would need to be addressed for production use:
 
-### 1. Session File Race Conditions
+### 1. Git Notes Lost on Rebase/Amend ⚠️ **CRITICAL**
+
+**Issue**: Git notes are attached to commit SHAs. Any operation that changes the SHA orphans the attestation.
+
+**Operations that break attestations:**
+- `git commit --amend`
+- `git rebase` (interactive or standard)
+- `git cherry-pick`
+- `git filter-branch` / `git filter-repo`
+- Any history rewriting operation
+
+**Impact**: **Makes this POC unsuitable for real-world use.** Modern Git workflows rely heavily on rebasing (interactive rebase to clean up commits, rebase to update feature branches, amend to fix commit messages/signatures, etc.).
+
+**Example:**
+```bash
+# Create commit with attestation
+git commit -m "Add feature"
+leeroy show HEAD  # ✓ Attestation present
+
+# Rebase or amend
+git commit --amend --gpg-sign  # Adds signature, creates new SHA
+leeroy show HEAD  # ✗ Attestation lost - attached to old SHA
+
+# The old note is orphaned
+git notes --ref=leeroy list  # Shows note for old SHA that's no longer in history
+```
+
+**Workarounds:**
+```bash
+# Manually copy notes after rebase/amend
+OLD_SHA=abc1234  # SHA before rebase
+NEW_SHA=def5678  # SHA after rebase
+git notes --ref=leeroy copy $OLD_SHA $NEW_SHA
+
+# Or use git's notes.rewriteRef config (limited support)
+git config notes.rewriteRef refs/notes/leeroy
+# This handles amend/rebase in some cases, but not reliably
+```
+
+**Why this can't be fixed in a POC:**
+
+Git notes are fundamentally tied to SHAs. When a SHA changes, the note stays with the old SHA. While Git has some support for note rewriting (`notes.rewriteRef`), it's:
+- Not reliable for all operations
+- Not supported by GitHub/GitLab/etc.
+- Doesn't work for force pushes or history that's already published
+
+**What would fix this:**
+
+Native platform support where attestations are:
+- First-class metadata like commit signatures
+- Preserved across history rewrites
+- Synced automatically by Git/GitHub/GitLab
+- Part of the commit object itself, or stored in a way that survives rebasing
+
+This POC demonstrates the **value** of AI attestation and what the **format and workflows** could look like. The technical implementation requires platform-level support to be production-ready.
+
+### 2. Session File Race Conditions
 
 **Issue**: The session JSON file (`~/.leeroy/current-session.json`) can be corrupted if multiple processes modify it simultaneously.
 
@@ -51,7 +121,7 @@ This is a **proof of concept** demonstrating the core ideas. The following limit
 
 **Status**: Acceptable for POC (single-user, typical workflows). Production would need file locking or atomic writes.
 
-### 2. Unbounded Log Growth
+### 3. Unbounded Log Growth
 
 **Issue**: The `~/.leeroy/prompts.log` file grows indefinitely with no rotation.
 
@@ -68,7 +138,7 @@ rm ~/.leeroy/prompts.log
 
 **Production fix**: Implement log rotation (logrotate or built-in size limits).
 
-### 3. Prompts Cleared on Branch Switch
+### 4. Prompts Cleared on Branch Switch
 
 **Issue**: The flat `prompts.log` file is cleared when you switch branches.
 
@@ -78,7 +148,7 @@ rm ~/.leeroy/prompts.log
 
 **Alternative**: Could implement per-branch logs or never clear historical logs (design decision).
 
-### 4. No Format Versioning
+### 5. No Format Versioning
 
 **Issue**: Session files and attestation format have no version field or migration path.
 
@@ -91,7 +161,7 @@ rm ~/.leeroy/current-session.json
 
 **Production fix**: Add `Version: 1.0` field to session JSON and attestation format, implement migration logic.
 
-### 5. Single Installation Path
+### 6. Single Installation Path
 
 **Issue**: Installation path is hardcoded to `~/.leeroy`.
 
@@ -101,7 +171,7 @@ rm ~/.leeroy/current-session.json
 
 **Production fix**: Support `LEEROY_DIR` environment variable or per-repo config.
 
-### 6. No Session Rollback
+### 7. No Session Rollback
 
 **Issue**: If attestation attachment fails, the session is still cleared (see `post-commit-attestation.sh:89`).
 
@@ -111,7 +181,7 @@ rm ~/.leeroy/current-session.json
 
 **Production fix**: Two-phase commit - only clear session after successful note attachment.
 
-### 7. Limited Concurrency Protection
+### 8. Limited Concurrency Protection
 
 **Issue**: Rapid commits or concurrent git operations could create race conditions.
 
@@ -119,7 +189,7 @@ rm ~/.leeroy/current-session.json
 
 **Production fix**: Proper locking, atomic operations, and retry logic.
 
-### 8. Temp Ref Collision (Fixed)
+### 9. Temp Ref Collision (Fixed)
 
 **Issue**: ~~Git pre-push hook used a fixed temp ref name that could collide.~~
 
