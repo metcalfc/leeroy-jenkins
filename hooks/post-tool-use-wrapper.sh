@@ -27,10 +27,10 @@ echo "Tool: $TOOL_NAME, Path: $TOOL_INPUT_PATH, Transcript: $TRANSCRIPT_PATH" >>
 if [[ "$TOOL_NAME" =~ ^(Write|Edit)$ ]] && [[ -n "$TOOL_INPUT_PATH" ]]; then
     echo "Tracking file modification" >> "$DEBUG_LOG"
 
-    # Extract model from transcript if available
+    # Extract model from transcript if available (use tail -1 to get most recent model)
     if [[ -f "$TRANSCRIPT_PATH" ]]; then
         echo "Transcript file exists" >> "$DEBUG_LOG"
-        MODEL=$(grep '"type":"assistant"' "$TRANSCRIPT_PATH" 2>/dev/null | head -1 | jq -r '.message.model // "unknown"' 2>/dev/null || echo "unknown")
+        MODEL=$(grep '"type":"assistant"' "$TRANSCRIPT_PATH" 2>/dev/null | tail -1 | jq -r '.message.model // "unknown"' 2>/dev/null || echo "unknown")
         echo "Extracted model: $MODEL" >> "$DEBUG_LOG"
         export CLAUDE_MODEL="$MODEL"
     else
@@ -45,12 +45,10 @@ if [[ "$TOOL_NAME" =~ ^(Write|Edit)$ ]] && [[ -n "$TOOL_INPUT_PATH" ]]; then
     # Call session tracker (this will initialize session with env vars if needed)
     /home/metcalfc/.leeroy/hooks/session-tracker.sh file "$TOOL_INPUT_PATH" modified
 
-    # Update existing session with model/version if they were unknown
+    # Always update session with latest model/version from transcript
     if [[ -f "$HOME/.leeroy/current-session.json" ]]; then
-        CURRENT_MODEL=$(jq -r '.model // "unknown"' "$HOME/.leeroy/current-session.json")
-        CURRENT_VERSION=$(jq -r '.tool_version // "unknown"' "$HOME/.leeroy/current-session.json")
-
-        if [[ "$CURRENT_MODEL" == "unknown" ]] || [[ "$CURRENT_VERSION" == "unknown" ]]; then
+        # Update if we have valid data from transcript (not "unknown")
+        if [[ "$MODEL" != "unknown" ]] || [[ "$VERSION" != "unknown" ]]; then
             echo "Updating session with model=$MODEL version=$VERSION" >> "$DEBUG_LOG"
             TMP=$(mktemp)
             jq --arg model "$MODEL" --arg version "$VERSION" \
