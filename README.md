@@ -4,6 +4,8 @@
 
 Transparent attribution for AI-assisted code contributions.
 
+![Leeroy Demo](demo.gif)
+
 ---
 
 ## ⚠️ PROOF OF CONCEPT - NOT PRODUCTION READY
@@ -35,8 +37,6 @@ This toolkit provides **opt-in transparency** so honest contributors can easily 
 2. **Sign** - Attestations are cryptographically signed with ed25519 toolkit key
 3. **Attach** - Post-commit hook attaches signed attestation as git note
 4. **Surface** - GitHub Action labels PRs and shows prompts and signature status to reviewers
-
-![Leeroy Demo](demo.gif)
 
 *See it in action: [leeroy-demo repository](https://github.com/metcalfc/leeroy-demo)*
 
