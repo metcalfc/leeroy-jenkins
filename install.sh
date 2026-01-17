@@ -327,18 +327,22 @@ if [[ -f "${CLAUDE_SETTINGS}" ]]; then
   "hooks": {
     "UserPromptSubmit": [
       {
-        "command": "${INSTALL_DIR}/hooks/capture-prompt.sh"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${INSTALL_DIR}/hooks/capture-prompt.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "write_to_file|create_file|str_replace|edit_file",
-        "command": "${INSTALL_DIR}/hooks/session-tracker.sh file \"\$TOOL_ARG_PATH\" modified"
-      }
-    ],
-    "PostCommit": [
-      {
-        "command": "${INSTALL_DIR}/hooks/post-commit-attestation.sh"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${INSTALL_DIR}/hooks/post-tool-use-wrapper.sh"
+          }
+        ]
       }
     ]
   }
@@ -352,18 +356,22 @@ else
   "hooks": {
     "UserPromptSubmit": [
       {
-        "command": "${INSTALL_DIR}/hooks/capture-prompt.sh"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${INSTALL_DIR}/hooks/capture-prompt.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "write_to_file|create_file|str_replace|edit_file",
-        "command": "${INSTALL_DIR}/hooks/session-tracker.sh file \"\$TOOL_ARG_PATH\" modified"
-      }
-    ],
-    "PostCommit": [
-      {
-        "command": "${INSTALL_DIR}/hooks/post-commit-attestation.sh"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${INSTALL_DIR}/hooks/post-tool-use-wrapper.sh"
+          }
+        ]
       }
     ]
   }

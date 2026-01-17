@@ -114,6 +114,7 @@ leeroy stats
 - `install.sh` - Main installer (copies hooks, creates CLI, configures Claude)
 
 **Session Tracking:**
+- `hooks/post-tool-use-wrapper.sh` - Reads PostToolUse JSON, extracts model/version, calls session-tracker
 - `hooks/session-tracker.sh:23-40` - Session initialization with unique ID
 - `hooks/session-tracker.sh:43-61` - File modification logging
 - `hooks/session-tracker.sh:64-83` - Prompt logging
@@ -160,23 +161,37 @@ Expected in `~/.claude/settings.json`:
 {
   "hooks": {
     "UserPromptSubmit": [{
-      "command": "$HOME/.leeroy/hooks/capture-prompt.sh"
+      "hooks": [{
+        "type": "command",
+        "command": "$HOME/.leeroy/hooks/capture-prompt.sh"
+      }]
     }],
     "PostToolUse": [{
-      "matcher": "write_to_file|create_file|str_replace|edit_file",
-      "command": "$HOME/.leeroy/hooks/session-tracker.sh file \"$TOOL_ARG_PATH\" modified"
-    }],
-    "PostCommit": [{
-      "command": "$HOME/.leeroy/hooks/post-commit-attestation.sh"
+      "hooks": [{
+        "type": "command",
+        "command": "$HOME/.leeroy/hooks/post-tool-use-wrapper.sh"
+      }]
     }]
   }
 }
 ```
 
-Environment variables set by Claude Code:
-- `TOOL_ARG_PATH` - File path being modified
-- `CLAUDE_CODE_VERSION` - Tool version (optional)
-- `CLAUDE_MODEL` - Model ID (optional)
+**How metadata is captured:**
+- `post-tool-use-wrapper.sh` reads JSON from stdin (includes transcript_path)
+- Extracts model from transcript file: `grep '"type":"assistant"' | jq '.message.model'`
+- Gets Claude Code version: `claude --version`
+- Sets environment variables and calls `session-tracker.sh`
+
+**JSON structure from PostToolUse hook:**
+```json
+{
+  "tool_name": "Write",
+  "tool_input": {"file_path": "/path/to/file"},
+  "transcript_path": "/home/user/.claude/projects/.../session-id.jsonl",
+  "session_id": "abc123",
+  ...
+}
+```
 
 ### Dependencies
 - `jq` - JSON parsing in session-tracker.sh
