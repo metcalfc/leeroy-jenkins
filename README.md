@@ -36,6 +36,10 @@ This toolkit provides **opt-in transparency** so honest contributors can easily 
 3. **Attach** - Post-commit hook attaches signed attestation as git note
 4. **Surface** - GitHub Action labels PRs and shows prompts and signature status to reviewers
 
+![Leeroy Demo](demo.gif)
+
+*See it in action: [leeroy-demo repository](https://github.com/metcalfc/leeroy-demo)*
+
 ### Two-Layer Signing
 
 Attestations include two levels of signatures for authenticity:
