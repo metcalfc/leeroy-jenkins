@@ -43,7 +43,7 @@ fi
 # Push notes
 echo "🤖 Pushing $notes_count Leeroy attestation note(s) to $REMOTE_NAME..."
 
-if git push "$REMOTE_NAME" refs/notes/leeroy 2>&1; then
+if git push --no-verify "$REMOTE_NAME" refs/notes/leeroy 2>&1; then
     echo "✓ Leeroy attestation notes pushed successfully"
 else
     echo "⚠️  Failed to push Leeroy attestation notes (continuing with commit push)"
