@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+#
+# Leeroy - Post Commit Hook
+# Clears the session after commit is complete
+
+set -euo pipefail
+
+SESSION_TRACKER="${HOME}/.leeroy/hooks/session-tracker.sh"
+
+# Clear the session
+if [[ -x "${SESSION_TRACKER}" ]]; then
+    "${SESSION_TRACKER}" clear 2>/dev/null || true
+fi

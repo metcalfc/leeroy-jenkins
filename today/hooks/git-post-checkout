@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+#
+# Leeroy - Post Checkout Hook
+# Clears stale sessions when switching branches
+
+set -euo pipefail
+
+PREV_HEAD="$1"
+NEW_HEAD="$2"
+BRANCH_CHECKOUT="$3"  # 1 if branch checkout, 0 if file checkout
+
+# Only clear on branch checkout
+if [[ "${BRANCH_CHECKOUT}" != "1" ]]; then
+    exit 0
+fi
+
+SESSION_TRACKER="${HOME}/.leeroy/hooks/session-tracker.sh"
+
+if [[ -x "${SESSION_TRACKER}" ]]; then
+    "${SESSION_TRACKER}" clear 2>/dev/null || true
+fi

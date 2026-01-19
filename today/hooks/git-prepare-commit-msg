@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+#
+# Leeroy - Prepare Commit Message Hook
+# Embeds AI attestation directly into the commit message
+#
+# This is the "use today" approach - no git notes, just commit message trailers.
+
+set -euo pipefail
+
+COMMIT_MSG_FILE="$1"
+COMMIT_SOURCE="${2:-}"  # message, template, merge, squash, or commit
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SESSION_TRACKER="${HOME}/.leeroy/hooks/session-tracker.sh"
+
+# Skip for merge commits, amend, etc.
+if [[ "${COMMIT_SOURCE}" == "merge" || "${COMMIT_SOURCE}" == "commit" ]]; then
+    exit 0
+fi
+
+# Get session data
+if [[ ! -x "${SESSION_TRACKER}" ]]; then
+    exit 0
+fi
+
+session_data=$("${SESSION_TRACKER}" get)
+
+# Check if there's an active session with content
+if [[ "${session_data}" == "{}" ]]; then
+    exit 0
+fi
+
+# Check if any files were modified or prompts logged
+files_count=$(echo "${session_data}" | jq '.files_modified | length')
+prompts_count=$(echo "${session_data}" | jq '.prompts | length')
+
+if [[ "${files_count}" -eq 0 ]] && [[ "${prompts_count}" -eq 0 ]]; then
+    exit 0
+fi
+
+# Format inline attestation as git trailers
+# This uses the standard git trailer format that tools understand
+format_attestation() {
+    local data="$1"
+
+    echo ""
+    echo "---"
+    echo "AI-Assisted: true"
+    echo "AI-Tool: $(echo "$data" | jq -r '.tool // "unknown"')/$(echo "$data" | jq -r '.tool_version // "unknown"')"
+    echo "AI-Model: $(echo "$data" | jq -r '.model // "unknown"')"
+    echo "AI-Session: $(echo "$data" | jq -r '.session_id')"
+    echo "AI-Started: $(echo "$data" | jq -r '.started_at')"
+
+    # List files (compact format)
+    if [[ "${files_count}" -gt 0 ]]; then
+        local files_list
+        files_list=$(echo "$data" | jq -r '.files_modified[].path' | tr '\n' ', ' | sed 's/,$//')
+        echo "AI-Files: ${files_list}"
+    fi
+
+    # Include prompt count (not full text - keep commit messages readable)
+    if [[ "${prompts_count}" -gt 0 ]]; then
+        echo "AI-Prompts: ${prompts_count}"
+    fi
+}
+
+# Append attestation to commit message
+attestation=$(format_attestation "${session_data}")
+
+# Read existing message, append attestation
+existing_msg=$(cat "${COMMIT_MSG_FILE}")
+echo "${existing_msg}" > "${COMMIT_MSG_FILE}"
+echo "${attestation}" >> "${COMMIT_MSG_FILE}"
+
+echo "Added AI attestation to commit message" >&2
