@@ -188,35 +188,17 @@ echo "Configuring Claude Code integration..."
 
 if [[ -f "${CLAUDE_SETTINGS}" ]]; then
     echo "Found existing Claude Code settings at ${CLAUDE_SETTINGS}"
-    echo ""
-    echo "Add these hooks to your settings.json:"
-    echo ""
-    cat << EOF
-{
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${INSTALL_DIR}/hooks/capture-prompt.sh"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${INSTALL_DIR}/hooks/post-tool-use-wrapper.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
-EOF
+    echo "Merging Leeroy hooks..."
+
+    # Use jq to merge hooks into existing settings
+    tmp=$(mktemp)
+    jq --arg capture "${INSTALL_DIR}/hooks/capture-prompt.sh" \
+       --arg tooluse "${INSTALL_DIR}/hooks/post-tool-use-wrapper.sh" '
+       .hooks.UserPromptSubmit = [{"hooks": [{"type": "command", "command": $capture}]}] |
+       .hooks.PostToolUse = [{"hooks": [{"type": "command", "command": $tooluse}]}]
+    ' "${CLAUDE_SETTINGS}" > "$tmp" && mv "$tmp" "${CLAUDE_SETTINGS}"
+
+    echo "Hooks merged into ${CLAUDE_SETTINGS}"
 else
     echo "Creating Claude Code settings..."
     mkdir -p "${HOME}/.claude"

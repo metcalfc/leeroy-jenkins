@@ -54,3 +54,16 @@ fi
 
 # Log the file modification
 "${SESSION_TRACKER}" file "${file_path}" "${mod_type}"
+
+# Update session with model/version (env vars only used during init)
+SESSION_FILE="${HOME}/.leeroy/current-session.json"
+if [[ -f "${SESSION_FILE}" ]]; then
+    model="${CLAUDE_MODEL:-}"
+    version="${CLAUDE_CODE_VERSION:-}"
+    if [[ -n "${model}" || -n "${version}" ]]; then
+        tmp=$(mktemp)
+        jq --arg model "${model:-unknown}" --arg version "${version:-unknown}" \
+           '.model = $model | .tool_version = $version' \
+           "${SESSION_FILE}" > "$tmp" && mv "$tmp" "${SESSION_FILE}"
+    fi
+fi
