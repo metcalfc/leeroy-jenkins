@@ -40,8 +40,12 @@ AI-Assisted: true
 AI-Tool: claude-code/1.0.0
 AI-Model: claude-sonnet-4-20250514
 AI-Session: abc12345
+AI-Started: 2024-01-15T10:30:00Z
 AI-Files: src/feature.py
-AI-Prompts: 2
+
+AI-Prompts:
+- [10:30:00] Add a feature that does X
+- [10:35:00] Fix the error handling
 
 # Push works normally - attestation travels with the commit
 $ git push
@@ -49,7 +53,7 @@ $ git push
 
 ## Attestation format
 
-Uses standard git trailer format:
+Uses standard git trailer format with full prompt text:
 
 ```
 Your commit message here
@@ -61,8 +65,14 @@ AI-Model: claude-sonnet-4-20250514
 AI-Session: 8a7b6c5d
 AI-Started: 2024-01-15T10:30:00Z
 AI-Files: src/main.py, src/utils.py
-AI-Prompts: 3
+
+AI-Prompts:
+- [10:30:00] Add a feature that does X
+- [10:35:00] Fix the error handling
+- [10:40:00] Add tests for the edge cases
 ```
+
+Full prompt text is preserved, including newlines.
 
 ## CLI commands
 
@@ -80,9 +90,9 @@ leeroy install-hooks  # Install git hooks in current repo
 | Works now | Yes | Requires ecosystem changes |
 | Portability | Travels with commits | Requires separate push/fetch |
 | Complexity | Simple | More complex |
-| Full prompt text | No (count only) | Yes |
+| Full prompt text | Yes | Yes |
 | Tool signatures | No | Yes |
-| Commit message size | Slightly larger | Unchanged |
+| Commit message size | Larger | Unchanged |
 
 ## Requirements
 

@@ -44,8 +44,12 @@ AI-Assisted: true
 AI-Tool: claude-code/1.0.0
 AI-Model: claude-sonnet-4-20250514
 AI-Session: abc12345
+AI-Started: 2024-01-15T10:30:00Z
 AI-Files: src/main.py, src/utils.py
-AI-Prompts: 3
+
+AI-Prompts:
+- [10:30:00] Add a feature that does X
+- [10:35:00] Fix the error handling
 ```
 
 **Key files:**
@@ -179,7 +183,7 @@ Both versions configure these hooks in `~/.claude/settings.json`:
 |--------|-------|----------|
 | Storage | Commit message | Git notes |
 | Portability | Travels with commits | Requires separate push |
-| Full prompts | No (count only) | Yes |
+| Full prompts | Yes | Yes |
 | Signatures | No | Yes (ed25519) |
 | Survives rebase | Yes | No |
 | Complexity | Simple | More complex |

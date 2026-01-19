@@ -58,9 +58,11 @@ format_attestation() {
         echo "AI-Files: ${files_list}"
     fi
 
-    # Include prompt count (not full text - keep commit messages readable)
+    # Include full prompt text (no truncation, preserve newlines)
     if [[ "${prompts_count}" -gt 0 ]]; then
-        echo "AI-Prompts: ${prompts_count}"
+        echo ""
+        echo "AI-Prompts:"
+        echo "$data" | jq -r '.prompts[] | "- [\(.timestamp | split("T")[1] | split("Z")[0])] \(.text)"'
     fi
 }
 

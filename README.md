@@ -32,11 +32,14 @@ AI-Tool: claude-code/1.0.0
 AI-Model: claude-sonnet-4-20250514
 AI-Session: abc12345
 AI-Files: src/feature.py
-AI-Prompts: 2
+
+AI-Prompts:
+- [10:30:00] Add a feature that does X
+- [10:35:00] Fix the error handling
 ```
 
-**Pros:** Works today, travels with commits, simple
-**Cons:** Summarized data only (prompt count, not full text)
+**Pros:** Works today, travels with commits, full prompt text
+**Cons:** Commit messages are larger
 
 ### [Tomorrow](tomorrow/) - The full vision
 
@@ -110,10 +113,10 @@ Work with Claude Code normally. Attestations are attached automatically when you
 |---------|-------|----------|
 | Works now | Yes | Requires ecosystem changes |
 | Travels with commits | Yes | No (separate push) |
-| Full prompt text | No | Yes |
+| Full prompt text | Yes | Yes |
 | Tool signatures | No | Yes |
 | Survives rebase | Yes (part of message) | No |
-| Commit message size | Slightly larger | Unchanged |
+| Commit message size | Larger | Unchanged |
 
 ## CLI Commands
 
