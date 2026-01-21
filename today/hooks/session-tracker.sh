@@ -1,28 +1,36 @@
 #!/usr/bin/env bash
 #
 # Leeroy Session Tracker
-# Logs AI-assisted editing activity for later attestation
-#
-# This is a simplified version that works with inline commit attestations.
+# Tracks AI-assisted editing activity for commit attestation
 
 set -euo pipefail
 
-LEEROY_DIR="${HOME}/.leeroy"
-SESSION_FILE="${LEEROY_DIR}/current-session.json"
-PROMPT_LOG="${LEEROY_DIR}/prompts.log"
+readonly LEEROY_DIR="${HOME}/.leeroy"
+readonly SESSION_FILE="${LEEROY_DIR}/current-session.json"
+readonly PROMPT_LOG="${LEEROY_DIR}/prompts.log"
 
-# Ensure directory exists
 mkdir -p "${LEEROY_DIR}"
 
-# Initialize session if needed
+# Check for jq dependency
+if ! command -v jq &>/dev/null; then
+    echo "Error: jq is required but not installed" >&2
+    exit 1
+fi
+
+get_timestamp() {
+    date -u +%Y-%m-%dT%H:%M:%SZ
+}
+
 init_session() {
-    if [[ ! -f "${SESSION_FILE}" ]]; then
-        local session_id
-        session_id=$(openssl rand -hex 8)
-        cat > "${SESSION_FILE}" << EOF
+    [[ -f "${SESSION_FILE}" ]] && return 0
+
+    local session_id
+    session_id=$(openssl rand -hex 8)
+
+    cat > "${SESSION_FILE}" << EOF
 {
     "session_id": "${session_id}",
-    "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+    "started_at": "$(get_timestamp)",
     "tool": "claude-code",
     "tool_version": "${CLAUDE_CODE_VERSION:-unknown}",
     "model": "${CLAUDE_MODEL:-unknown}",
@@ -30,50 +38,49 @@ init_session() {
     "prompts": []
 }
 EOF
-        echo "Session initialized: ${session_id}" >&2
-    fi
+    echo "Session initialized: ${session_id}" >&2
 }
 
-# Log a file modification
 log_file_modification() {
-    local filepath="$1"
-    local modification_type="${2:-modified}"
-    local timestamp
-    timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    local filepath="${1:-}"
+    local mod_type="${2:-modified}"
+
+    [[ -z "${filepath}" ]] && { echo "Error: filepath required" >&2; return 1; }
 
     init_session
 
     local tmp
     tmp=$(mktemp)
-    jq --arg path "$filepath" \
-       --arg type "$modification_type" \
-       --arg ts "$timestamp" \
+    jq --arg path "${filepath}" \
+       --arg type "${mod_type}" \
+       --arg ts "$(get_timestamp)" \
        '.files_modified += [{"path": $path, "type": $type, "timestamp": $ts}]' \
-       "${SESSION_FILE}" > "$tmp" && mv "$tmp" "${SESSION_FILE}"
+       "${SESSION_FILE}" > "${tmp}" && mv "${tmp}" "${SESSION_FILE}"
 
-    echo "Logged: ${modification_type} ${filepath}" >&2
+    echo "Logged: ${mod_type} ${filepath}" >&2
 }
 
-# Log a prompt
 log_prompt() {
-    local prompt="$1"
-    local timestamp
-    timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    local prompt="${1:-}"
+
+    [[ -z "${prompt}" ]] && { echo "Error: prompt required" >&2; return 1; }
 
     init_session
 
+    local timestamp
+    timestamp=$(get_timestamp)
+
     local tmp
     tmp=$(mktemp)
-    jq --arg prompt "$prompt" \
-       --arg ts "$timestamp" \
+    jq --arg prompt "${prompt}" \
+       --arg ts "${timestamp}" \
        '.prompts += [{"text": $prompt, "timestamp": $ts}]' \
-       "${SESSION_FILE}" > "$tmp" && mv "$tmp" "${SESSION_FILE}"
+       "${SESSION_FILE}" > "${tmp}" && mv "${tmp}" "${SESSION_FILE}"
 
     echo "[${timestamp}] ${prompt}" >> "${PROMPT_LOG}"
     echo "Logged prompt" >&2
 }
 
-# Get current session data
 get_session() {
     if [[ -f "${SESSION_FILE}" ]]; then
         cat "${SESSION_FILE}"
@@ -82,44 +89,31 @@ get_session() {
     fi
 }
 
-# Clear session (called on /clear or new Claude session)
 clear_session() {
     rm -f "${SESSION_FILE}"
     echo "Session cleared" >&2
 }
 
-# Clear just files (called after commit - prompts persist for multi-commit workflows)
 clear_files() {
-    if [[ -f "${SESSION_FILE}" ]]; then
-        local tmp
-        tmp=$(mktemp)
-        jq '.files_modified = []' "${SESSION_FILE}" > "$tmp" && mv "$tmp" "${SESSION_FILE}"
-        echo "Files cleared (prompts preserved)" >&2
-    fi
+    [[ ! -f "${SESSION_FILE}" ]] && return 0
+
+    local tmp
+    tmp=$(mktemp)
+    jq '.files_modified = []' "${SESSION_FILE}" > "${tmp}" && mv "${tmp}" "${SESSION_FILE}"
+    echo "Files cleared (prompts preserved)" >&2
 }
 
-# Main dispatch
+usage() {
+    echo "Usage: $0 {init|file|prompt|get|clear|clear-files}" >&2
+    exit 1
+}
+
 case "${1:-}" in
-    init)
-        init_session
-        ;;
-    file)
-        log_file_modification "${2:-}" "${3:-modified}"
-        ;;
-    prompt)
-        log_prompt "${2:-}"
-        ;;
-    get)
-        get_session
-        ;;
-    clear)
-        clear_session
-        ;;
-    clear-files)
-        clear_files
-        ;;
-    *)
-        echo "Usage: $0 {init|file|prompt|get|clear|clear-files}" >&2
-        exit 1
-        ;;
+    init)        init_session ;;
+    file)        log_file_modification "${2:-}" "${3:-modified}" ;;
+    prompt)      log_prompt "${2:-}" ;;
+    get)         get_session ;;
+    clear)       clear_session ;;
+    clear-files) clear_files ;;
+    *)           usage ;;
 esac

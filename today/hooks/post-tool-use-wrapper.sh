@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Leeroy Inline - Post Tool Use Wrapper
+# Leeroy - Post Tool Use Hook
 # Called by Claude Code's PostToolUse hook
 #
 # Extracts model/version info and tracks file modifications
@@ -8,50 +8,49 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SESSION_TRACKER="${SCRIPT_DIR}/session-tracker.sh"
+readonly SCRIPT_DIR
+readonly SESSION_TRACKER="${SCRIPT_DIR}/session-tracker.sh"
+readonly SESSION_FILE="${HOME}/.leeroy/current-session.json"
 
-# Read JSON from STDIN
+# Read JSON from stdin
 input=$(cat)
 
-# Extract tool name
+# Extract tool name - only track Write and Edit
 tool_name=$(echo "${input}" | jq -r '.tool_name // empty' 2>/dev/null || true)
-
-# Only track Write and Edit tools
 if [[ "${tool_name}" != "Write" && "${tool_name}" != "Edit" ]]; then
     exit 0
 fi
 
-# Extract file path (absolute path from Claude)
+# Extract file path
 file_path=$(echo "${input}" | jq -r '.tool_input.file_path // empty' 2>/dev/null || true)
+[[ -z "${file_path}" ]] && exit 0
 
-if [[ -z "${file_path}" ]]; then
-    exit 0
-fi
-
-# Determine modification type using absolute path (before converting to relative)
+# Determine modification type (before converting to relative path)
 if [[ -f "${file_path}" ]]; then
     mod_type="modified"
 else
     mod_type="created"
 fi
 
-# Convert to relative path from git repo root (avoid leaking full filesystem paths)
-if git rev-parse --git-dir &>/dev/null 2>&1; then
+# Convert to relative path from git repo root (avoid leaking filesystem paths)
+if git rev-parse --git-dir &>/dev/null; then
     repo_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
     if [[ -n "${repo_root}" && "${file_path}" == "${repo_root}"/* ]]; then
-        file_path="${file_path#${repo_root}/}"
+        file_path="${file_path#"${repo_root}"/}"
     fi
 fi
 
-# Try to extract model from transcript
+# Extract model from transcript (portable: works on macOS and Linux)
 transcript_path=$(echo "${input}" | jq -r '.transcript_path // empty' 2>/dev/null || true)
-
 if [[ -n "${transcript_path}" && -f "${transcript_path}" ]]; then
-    # Get model from most recent assistant message
-    model=$(tac "${transcript_path}" | grep -m1 '"type":"assistant"' | jq -r '.message.model // empty' 2>/dev/null || true)
-    if [[ -n "${model}" ]]; then
-        export CLAUDE_MODEL="${model}"
+    # Use tail -r on macOS, tac on Linux (or grep with tail as fallback)
+    if command -v tac &>/dev/null; then
+        model=$(tac "${transcript_path}" | grep -m1 '"type":"assistant"' | jq -r '.message.model // empty' 2>/dev/null || true)
+    else
+        # Portable fallback: grep all, take last line
+        model=$(grep '"type":"assistant"' "${transcript_path}" 2>/dev/null | tail -1 | jq -r '.message.model // empty' 2>/dev/null || true)
     fi
+    [[ -n "${model}" ]] && export CLAUDE_MODEL="${model}"
 fi
 
 # Get Claude Code version
@@ -63,8 +62,7 @@ fi
 # Log the file modification
 "${SESSION_TRACKER}" file "${file_path}" "${mod_type}"
 
-# Update session with model/version (env vars only used during init)
-SESSION_FILE="${HOME}/.leeroy/current-session.json"
+# Update session with model/version if available
 if [[ -f "${SESSION_FILE}" ]]; then
     model="${CLAUDE_MODEL:-}"
     version="${CLAUDE_CODE_VERSION:-}"
@@ -72,6 +70,6 @@ if [[ -f "${SESSION_FILE}" ]]; then
         tmp=$(mktemp)
         jq --arg model "${model:-unknown}" --arg version "${version:-unknown}" \
            '.model = $model | .tool_version = $version' \
-           "${SESSION_FILE}" > "$tmp" && mv "$tmp" "${SESSION_FILE}"
+           "${SESSION_FILE}" > "${tmp}" && mv "${tmp}" "${SESSION_FILE}"
     fi
 fi
