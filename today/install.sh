@@ -86,25 +86,102 @@ cmd_show() {
         echo "AI Attestation for $(git rev-parse --short "${ref}"):"
         echo ""
         echo "${msg}" | sed -n '/^---$/,$p'
+    elif echo "${msg}" | grep -q "Human-Attested: true"; then
+        echo "Human Attestation for $(git rev-parse --short "${ref}"):"
+        echo ""
+        echo "${msg}" | sed -n '/^---$/,$p'
     else
-        echo "No AI attestation found for ${ref}" >&2
+        echo "No attestation found for ${ref}" >&2
         exit 1
     fi
 }
 
 cmd_stats() {
-    local total ai_assisted
+    local total ai_assisted human_attested
     total=$(git rev-list HEAD --count 2>/dev/null || echo 0)
     ai_assisted=$(git log --grep="AI-Assisted: true" --oneline 2>/dev/null | wc -l | tr -d ' ')
+    human_attested=$(git log --grep="Human-Attested: true" --oneline 2>/dev/null | wc -l | tr -d ' ')
 
-    echo "AI Attestation Stats for $(basename "$(git rev-parse --show-toplevel)")"
+    echo "Attestation Stats for $(basename "$(git rev-parse --show-toplevel)")"
     echo ""
-    echo "Total commits: ${total}"
-    echo "AI-assisted:   ${ai_assisted}"
+    echo "Total commits:    ${total}"
+    echo "AI-assisted:      ${ai_assisted}"
+    echo "Human-attested:   ${human_attested}"
     if [[ ${total} -gt 0 ]]; then
-        local pct=$((ai_assisted * 100 / total))
-        echo "Percentage:    ${pct}%"
+        local ai_pct=$((ai_assisted * 100 / total))
+        local human_pct=$((human_attested * 100 / total))
+        local attested=$((ai_assisted + human_attested))
+        local attested_pct=$((attested * 100 / total))
+        echo "Total attested:   ${attested} (${attested_pct}%)"
     fi
+}
+
+cmd_attest_human() {
+    local ref="${1:-HEAD}"
+
+    # Verify we're in a git repo
+    if ! git rev-parse --git-dir &>/dev/null; then
+        echo "Error: Not in a git repository" >&2
+        exit 1
+    fi
+
+    # Check if this is HEAD (we can only amend HEAD)
+    local target_sha ref_sha
+    target_sha=$(git rev-parse HEAD)
+    ref_sha=$(git rev-parse "${ref}" 2>/dev/null) || {
+        echo "Error: Invalid ref '${ref}'" >&2
+        exit 1
+    }
+
+    if [[ "${ref_sha}" != "${target_sha}" ]]; then
+        echo "Error: Can only attest HEAD commit (use interactive rebase for older commits)" >&2
+        exit 1
+    fi
+
+    # Check if already attested
+    local msg
+    msg=$(git log -1 --format="%B" HEAD)
+
+    if echo "${msg}" | grep -q "AI-Assisted: true"; then
+        echo "Error: Commit already has AI attestation" >&2
+        exit 1
+    fi
+
+    if echo "${msg}" | grep -q "Human-Attested: true"; then
+        echo "Error: Commit already has human attestation" >&2
+        exit 1
+    fi
+
+    # Get author info
+    local author_name author_email timestamp
+    author_name=$(git config user.name)
+    author_email=$(git config user.email)
+    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # Build attestation block
+    local attestation
+    attestation=$(cat << EOATTEST
+
+---
+AI-Assisted: false
+Human-Attested: true
+Attested-By: ${author_name} <${author_email}>
+Attested-At: ${timestamp}
+EOATTEST
+)
+
+    # Amend the commit with attestation
+    local new_msg="${msg}${attestation}"
+
+    git commit --amend -m "${new_msg}" --no-edit --allow-empty-message
+
+    echo "Human attestation added to $(git rev-parse --short HEAD)"
+    echo ""
+    echo "Attestation:"
+    echo "  AI-Assisted: false"
+    echo "  Human-Attested: true"
+    echo "  Attested-By: ${author_name} <${author_email}>"
+    echo "  Attested-At: ${timestamp}"
 }
 
 cmd_install_hooks() {
@@ -159,6 +236,7 @@ Commands:
   show [ref]      Show attestation for a commit (default: HEAD)
   stats           Show attestation statistics
   install-hooks   Install git hooks in current repository
+  attest-human    Attest that HEAD commit was human-authored (no AI)
   help            Show this help message
 
 Examples:
@@ -166,6 +244,7 @@ Examples:
   leeroy list 20
   leeroy show abc123
   leeroy stats
+  leeroy attest-human    # Add human attestation to last commit
 EOF
 }
 
@@ -174,6 +253,7 @@ case "${1:-help}" in
     show)          cmd_show "${2:-HEAD}" ;;
     stats)         cmd_stats ;;
     install-hooks) cmd_install_hooks ;;
+    attest-human)  cmd_attest_human "${2:-HEAD}" ;;
     help|*)        cmd_help ;;
 esac
 EOFCLI
