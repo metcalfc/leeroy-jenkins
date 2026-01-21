@@ -10,6 +10,11 @@ on:
   pull_request_target:
     types: [opened, synchronize, reopened]
 
+# Configuration via repository variables:
+#   LEEROY_CLOSE_REJECTED_PRS: Set to 'false' to disable auto-closing rejected PRs (default: true)
+env:
+  CLOSE_REJECTED: ${{ vars.LEEROY_CLOSE_REJECTED_PRS != 'false' }}
+
 permissions:
   contents: read
   pull-requests: write
@@ -447,12 +452,19 @@ jobs:
                 body += `Consider adding attestation to all commits for complete transparency.\n`;
                 break;
               case 'no_attestation':
+                const willClose = '${{ env.CLOSE_REJECTED }}' === 'true';
                 body += `❌ **Rejected:** Author does not have write access and no commits include attestation.\n\n`;
-                body += `**To fix:**\n`;
+                if (willClose) {
+                  body += `⚠️ **This PR has been automatically closed.** Once you've added attestation, reopen it and the check will run again.\n\n`;
+                }
+                body += `**How to fix:**\n`;
                 body += `1. Install [Leeroy](https://github.com/metcalfc/leeroy-jenkins) to add attestation to your commits\n`;
-                body += `2. For AI-assisted commits: attestation is added automatically\n`;
-                body += `3. For human-authored commits: run \`leeroy attest-human\` after committing\n`;
-                body += `4. Or request write access to this repository\n`;
+                body += `2. Amend your commit(s) to include attestation:\n`;
+                body += `   - For AI-assisted work: attestation is added automatically when using Claude Code with Leeroy hooks\n`;
+                body += `   - For human-authored work: run \`leeroy attest-human\` to attest existing commits\n`;
+                body += `3. Force-push your branch: \`git push --force-with-lease\`\n`;
+                body += `4. Reopen this PR\n\n`;
+                body += `**Alternative:** Request write access from the repository maintainers.\n`;
                 break;
             }
 
@@ -485,17 +497,32 @@ jobs:
               });
             }
 
+      - name: Close rejected PR
+        if: steps.evaluate.outputs.status == 'rejected' && env.CLOSE_REJECTED == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              state: 'closed'
+            });
+            console.log('PR closed due to missing attestation');
+
       - name: Fail if rejected
         if: steps.evaluate.outputs.status == 'rejected'
         run: |
-          echo "::error::PR rejected: ${{ steps.evaluate.outputs.reason }}"
+          echo "::error::PR rejected: No write access and no Leeroy attestation"
           echo ""
           echo "This PR was rejected because:"
           echo "  - Author does not have write access to this repository"
-          echo "  - No commits include Leeroy AI attestation"
+          echo "  - No commits include Leeroy attestation"
           echo ""
-          echo "To resolve this:"
+          echo "To fix this:"
           echo "  1. Install Leeroy (https://github.com/metcalfc/leeroy-jenkins)"
-          echo "  2. Recommit with AI attestation enabled"
-          echo "  - OR request write access from repository maintainers"
+          echo "  2. Amend your commits to include attestation"
+          echo "  3. Force-push and reopen this PR"
+          echo ""
+          echo "See the PR comment for detailed instructions."
           exit 1
