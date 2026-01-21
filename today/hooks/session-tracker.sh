@@ -6,10 +6,34 @@
 set -euo pipefail
 
 readonly LEEROY_DIR="${HOME}/.leeroy"
-readonly SESSION_FILE="${LEEROY_DIR}/current-session.json"
+readonly SESSIONS_DIR="${LEEROY_DIR}/sessions"
 readonly PROMPT_LOG="${LEEROY_DIR}/prompts.log"
 
-mkdir -p "${LEEROY_DIR}"
+mkdir -p "${SESSIONS_DIR}"
+
+# Get session file path for the current git worktree
+# Each worktree/repo gets its own session file based on path hash
+get_session_file() {
+    local git_root=""
+
+    # Try to get git worktree root
+    if git rev-parse --show-toplevel &>/dev/null; then
+        git_root=$(git rev-parse --show-toplevel 2>/dev/null)
+    fi
+
+    if [[ -n "${git_root}" ]]; then
+        # Hash the git root path to create a unique session key
+        local hash
+        hash=$(echo -n "${git_root}" | openssl dgst -sha256 | awk '{print $2}' | cut -c1-16)
+        echo "${SESSIONS_DIR}/${hash}.json"
+    else
+        # Fallback for non-git directories (rare case)
+        echo "${SESSIONS_DIR}/default.json"
+    fi
+}
+
+# Get the session file path - can be overridden by LEEROY_SESSION_FILE env var
+SESSION_FILE="${LEEROY_SESSION_FILE:-$(get_session_file)}"
 
 # Check for jq dependency
 if ! command -v jq &>/dev/null; then
@@ -103,8 +127,12 @@ clear_files() {
     echo "Files cleared (prompts preserved)" >&2
 }
 
+show_session_path() {
+    echo "${SESSION_FILE}"
+}
+
 usage() {
-    echo "Usage: $0 {init|file|prompt|get|clear|clear-files}" >&2
+    echo "Usage: $0 {init|file|prompt|get|clear|clear-files|path}" >&2
     exit 1
 }
 
@@ -115,5 +143,6 @@ case "${1:-}" in
     get)         get_session ;;
     clear)       clear_session ;;
     clear-files) clear_files ;;
+    path)        show_session_path ;;
     *)           usage ;;
 esac

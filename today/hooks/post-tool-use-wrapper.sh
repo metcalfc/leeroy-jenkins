@@ -10,7 +10,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
 readonly SESSION_TRACKER="${SCRIPT_DIR}/session-tracker.sh"
-readonly SESSION_FILE="${HOME}/.leeroy/current-session.json"
 
 # Read JSON from stdin
 input=$(cat)
@@ -63,6 +62,7 @@ fi
 "${SESSION_TRACKER}" file "${file_path}" "${mod_type}"
 
 # Update session with model/version if available
+SESSION_FILE=$("${SESSION_TRACKER}" path)
 if [[ -f "${SESSION_FILE}" ]]; then
     model="${CLAUDE_MODEL:-}"
     version="${CLAUDE_CODE_VERSION:-}"

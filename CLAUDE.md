@@ -89,8 +89,14 @@ Tool-Signature: ed25519:base64...
 Both versions use the same session tracking mechanism.
 
 **Location:** `~/.leeroy/`
-- `current-session.json` - Active AI session (prompts, files, timestamps)
-- `prompts.log` - Flat log of all prompts
+- `sessions/<hash>.json` - Per-repo session files (hash of git root path)
+- `prompts.log` - Flat log of all prompts (global)
+
+**Multi-repo support:**
+- Each repository/worktree gets its own session file
+- Multiple simultaneous Claude instances in different repos are supported
+- Git worktrees are treated as separate repos (each gets its own session)
+- Session isolation is based on `git rev-parse --show-toplevel`
 
 **Session lifecycle:**
 1. First Claude edit → `PostToolUse` fires → session initialized
@@ -132,11 +138,13 @@ leeroy install-hooks
 ~/.leeroy/hooks/session-tracker.sh file "test.txt" modified
 ~/.leeroy/hooks/session-tracker.sh prompt "test prompt"
 ~/.leeroy/hooks/session-tracker.sh get
+~/.leeroy/hooks/session-tracker.sh path  # Show which session file is used
 
 # Test CLI
 leeroy list
 leeroy show HEAD
 leeroy stats
+leeroy session  # Show current session info and file path
 ```
 
 ### Install and Test (Tomorrow Version)
@@ -222,10 +230,11 @@ Both versions are complete and functional:
 - ✅ Automatic prompt capture via UserPromptSubmit hook
 - ✅ File modification tracking via PostToolUse hook
 - ✅ Git hooks for any commit method (CLI, IDE, GUI)
-- ✅ CLI tools (list, show, stats, install-hooks, clear-session)
+- ✅ CLI tools (list, show, stats, session, install-hooks, clear-session)
 - ✅ Session management via SessionStart hook (/clear, startup)
 - ✅ Branch switch detection via git post-checkout hook
 - ✅ Multi-commit workflow support (prompts persist across commits)
+- ✅ Multi-repo/worktree support (separate sessions per repo)
 
 Tomorrow version additionally has:
 - ✅ Cryptographic signing (ed25519)

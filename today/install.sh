@@ -195,6 +195,32 @@ cmd_clear_session() {
     fi
 }
 
+cmd_session() {
+    local session_tracker="${HOME}/.leeroy/hooks/session-tracker.sh"
+    if [[ ! -x "${session_tracker}" ]]; then
+        echo "Error: Session tracker not found" >&2
+        exit 1
+    fi
+
+    local session_file
+    session_file=$("${session_tracker}" path)
+
+    echo "Session file: ${session_file}"
+    echo ""
+
+    if [[ -f "${session_file}" ]]; then
+        local data
+        data=$("${session_tracker}" get)
+        echo "Session ID:   $(echo "${data}" | jq -r '.session_id // "none"')"
+        echo "Started:      $(echo "${data}" | jq -r '.started_at // "never"')"
+        echo "Model:        $(echo "${data}" | jq -r '.model // "unknown"')"
+        echo "Files:        $(echo "${data}" | jq '.files_modified | length')"
+        echo "Prompts:      $(echo "${data}" | jq '.prompts | length')"
+    else
+        echo "No active session"
+    fi
+}
+
 cmd_install_hooks() {
     if ! git rev-parse --git-dir &>/dev/null; then
         echo "Error: Not in a git repository" >&2
@@ -248,6 +274,7 @@ Commands:
   stats           Show attestation statistics
   install-hooks   Install git hooks in current repository
   attest-human    Attest that HEAD commit was human-authored (no AI)
+  session         Show current session info (file path, stats)
   clear-session   Clear current session (start fresh for next task)
   help            Show this help message
 
@@ -276,6 +303,7 @@ case "${1:-help}" in
     stats)         cmd_stats ;;
     install-hooks) cmd_install_hooks ;;
     attest-human)  cmd_attest_human "${2:-HEAD}" ;;
+    session)       cmd_session ;;
     clear-session) cmd_clear_session ;;
     help|*)        cmd_help ;;
 esac
