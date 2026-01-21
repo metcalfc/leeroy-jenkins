@@ -1,7 +1,13 @@
 name: PR Gatekeeper
 
+# We use pull_request_target instead of pull_request because:
+# 1. PRs from forks get read-only GITHUB_TOKEN with pull_request (security feature)
+# 2. This workflow needs write access to add labels and post comments
+# 3. This is SAFE because we only read git commit metadata - we don't checkout or
+#    execute any code from the PR. The attestation check uses git rev-list on
+#    commit messages only.
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened]
 
 permissions:
