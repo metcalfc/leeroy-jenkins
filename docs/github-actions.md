@@ -17,7 +17,12 @@ Validates PRs based on contributor trust OR attestation.
 
 ### Setup
 
-Copy `.github/workflows/pr-gatekeeper.yml` to your repository.
+Copy `today/github-action/pr-gatekeeper.yml` to your repository's `.github/workflows/` directory:
+
+```bash
+mkdir -p .github/workflows
+cp today/github-action/pr-gatekeeper.yml .github/workflows/
+```
 
 ### Labels Applied
 
@@ -67,7 +72,12 @@ elif [[ "${has_attestation}" == "true" ]]; then
 
 ## Transparency Check (Tomorrow Version)
 
-For the git notes version, use `.github/workflows/ai-transparency.yml`.
+For the git notes version, copy `tomorrow/github-action/ai-transparency.yml` to your repository's `.github/workflows/` directory:
+
+```bash
+mkdir -p .github/workflows
+cp tomorrow/github-action/ai-transparency.yml .github/workflows/
+```
 
 ### Additional Setup
 
