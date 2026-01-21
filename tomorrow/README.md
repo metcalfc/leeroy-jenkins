@@ -55,10 +55,25 @@ Git notes require:
 ## Additional Commands
 
 ```bash
-leeroy verify HEAD  # Verify tool signature
-leeroy fetch        # Fetch notes from origin
-leeroy push         # Push notes to origin
+leeroy verify HEAD    # Verify tool signature
+leeroy fetch          # Fetch notes from origin
+leeroy push           # Push notes to origin
+leeroy clear-session  # Clear session before new task
 ```
+
+## Session Management
+
+Sessions track prompts and file modifications. **Use `/clear` between different tasks** to ensure prompts from one task don't appear in commits for another task.
+
+**Sessions are automatically cleared on:**
+- `/clear` command in Claude Code
+- Starting a new Claude Code session
+- Switching git branches
+
+**Sessions persist across:**
+- Multiple commits (same prompts appear in each commit within a task)
+- Context compaction
+- Session resume
 
 ## Documentation
 
@@ -71,17 +86,18 @@ leeroy push         # Push notes to origin
 ```
 ~/.leeroy/
 ├── hooks/
-│   ├── session-tracker.sh
-│   ├── capture-prompt.sh
-│   ├── post-tool-use-wrapper.sh
-│   ├── post-commit-attestation.sh
-│   └── sign-attestation.sh
+│   ├── session-tracker.sh         # Core session tracking
+│   ├── capture-prompt.sh          # UserPromptSubmit hook
+│   ├── post-tool-use-wrapper.sh   # PostToolUse hook
+│   ├── session-clear.sh           # SessionStart hook (clears on /clear, startup)
+│   ├── post-commit-attestation.sh # Creates signed attestation
+│   └── sign-attestation.sh        # ed25519 signing
 ├── git-hooks/
-│   ├── prepare-commit-msg
-│   ├── post-commit
-│   ├── pre-push
-│   └── post-checkout
+│   ├── prepare-commit-msg         # Shows AI summary before commit
+│   ├── post-commit                # Attaches attestation, clears files
+│   ├── pre-push                   # Auto-pushes notes
+│   └── post-checkout              # Clears session on branch switch
 ├── bin/
-│   └── leeroy
-└── toolkit.key  # ed25519 signing key
+│   └── leeroy                     # CLI tool
+└── toolkit.key                    # ed25519 signing key
 ```

@@ -27,6 +27,15 @@ echo "Tool: $TOOL_NAME, Path: $TOOL_INPUT_PATH, Transcript: $TRANSCRIPT_PATH" >>
 if [[ "$TOOL_NAME" =~ ^(Write|Edit)$ ]] && [[ -n "$TOOL_INPUT_PATH" ]]; then
     echo "Tracking file modification" >> "$DEBUG_LOG"
 
+    # Convert to relative path from git repo root (avoid leaking full filesystem paths)
+    if git rev-parse --git-dir &>/dev/null 2>&1; then
+        REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
+        if [[ -n "${REPO_ROOT}" && "${TOOL_INPUT_PATH}" == "${REPO_ROOT}"/* ]]; then
+            TOOL_INPUT_PATH="${TOOL_INPUT_PATH#${REPO_ROOT}/}"
+            echo "Converted to relative path: $TOOL_INPUT_PATH" >> "$DEBUG_LOG"
+        fi
+    fi
+
     # Extract model from transcript if available (use tail -1 to get most recent model)
     if [[ -f "$TRANSCRIPT_PATH" ]]; then
         echo "Transcript file exists" >> "$DEBUG_LOG"
@@ -43,7 +52,7 @@ if [[ "$TOOL_NAME" =~ ^(Write|Edit)$ ]] && [[ -n "$TOOL_INPUT_PATH" ]]; then
     export CLAUDE_CODE_VERSION="$VERSION"
 
     # Call session tracker (this will initialize session with env vars if needed)
-    /home/metcalfc/.leeroy/hooks/session-tracker.sh file "$TOOL_INPUT_PATH" modified
+    "$HOME/.leeroy/hooks/session-tracker.sh" file "$TOOL_INPUT_PATH" modified
 
     # Always update session with latest model/version from transcript
     if [[ -f "$HOME/.leeroy/current-session.json" ]]; then

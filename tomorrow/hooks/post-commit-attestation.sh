@@ -86,5 +86,6 @@ if [[ $(echo "${signed_attestation}" | wc -l) -gt 20 ]]; then
     echo "  ... (truncated)" >&2
 fi
 
-# Clear the session for next time
-"${SESSION_TRACKER}" clear
+# Clear files only - prompts persist for multi-commit workflows
+# Full session clear happens on /clear or new Claude session (via SessionStart hook)
+"${SESSION_TRACKER}" clear-files

@@ -57,8 +57,10 @@ AI-Prompts:
 - `today/hooks/session-tracker.sh` - Track AI sessions
 - `today/hooks/capture-prompt.sh` - Auto-capture prompts via UserPromptSubmit
 - `today/hooks/post-tool-use-wrapper.sh` - Track file modifications
+- `today/hooks/session-clear.sh` - Clear session on /clear or startup (SessionStart hook)
 - `today/hooks/git-prepare-commit-msg` - Embed attestation in commit message
-- `today/hooks/git-post-commit` - Clear session after commit
+- `today/hooks/git-post-commit` - Clear files after commit (prompts persist)
+- `today/hooks/git-post-checkout` - Clear session on branch switch
 
 ### Tomorrow Version (Experimental)
 
@@ -94,8 +96,22 @@ Both versions use the same session tracking mechanism.
 1. First Claude edit → `PostToolUse` fires → session initialized
 2. More edits → append to `files_modified` array
 3. Prompts captured automatically via `UserPromptSubmit` hook
-4. Commit → attestation attached → **session cleared**
-5. Next Claude edit → new session
+4. Commit → attestation attached → **files cleared, prompts persist**
+5. More commits in same task → same prompts in each commit
+6. `/clear` or branch switch → **full session cleared**
+
+**When sessions are cleared:**
+- `/clear` command in Claude Code (via SessionStart hook)
+- New Claude Code session/startup (via SessionStart hook)
+- Git branch switch (via git post-checkout hook)
+- Manual: `leeroy clear-session`
+
+**When sessions are NOT cleared:**
+- Context compaction (prompts remain relevant)
+- Session resume (context preserved)
+- After commit (only files cleared, prompts persist for multi-commit workflows)
+
+**Important:** Use `/clear` between logical tasks. If you work on Task A, then Task B without `/clear`, Task B's commits will include Task A's prompts.
 
 ## Development Commands
 
@@ -160,6 +176,12 @@ Both versions configure these hooks in `~/.claude/settings.json`:
         "type": "command",
         "command": "$HOME/.leeroy/hooks/post-tool-use-wrapper.sh"
       }]
+    }],
+    "SessionStart": [{
+      "hooks": [{
+        "type": "command",
+        "command": "$HOME/.leeroy/hooks/session-clear.sh"
+      }]
     }]
   }
 }
@@ -170,6 +192,11 @@ Both versions configure these hooks in `~/.claude/settings.json`:
 - Extracts model from transcript file
 - Gets Claude Code version: `claude --version`
 - Calls `session-tracker.sh` with metadata
+
+**How session clearing works:**
+- `session-clear.sh` receives SessionStart events with a `source` field
+- Clears session on `source: "startup"` (new Claude session) or `source: "clear"` (/clear command)
+- Does NOT clear on `source: "resume"` or `source: "compact"` (context preserved)
 
 ## Dependencies
 
@@ -195,8 +222,10 @@ Both versions are complete and functional:
 - ✅ Automatic prompt capture via UserPromptSubmit hook
 - ✅ File modification tracking via PostToolUse hook
 - ✅ Git hooks for any commit method (CLI, IDE, GUI)
-- ✅ CLI tools (list, show, stats, install-hooks)
-- ✅ Session management (init, clear on commit/branch switch)
+- ✅ CLI tools (list, show, stats, install-hooks, clear-session)
+- ✅ Session management via SessionStart hook (/clear, startup)
+- ✅ Branch switch detection via git post-checkout hook
+- ✅ Multi-commit workflow support (prompts persist across commits)
 
 Tomorrow version additionally has:
 - ✅ Cryptographic signing (ed25519)

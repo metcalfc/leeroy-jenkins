@@ -184,6 +184,17 @@ EOATTEST
     echo "  Attested-At: ${timestamp}"
 }
 
+cmd_clear_session() {
+    local session_tracker="${HOME}/.leeroy/hooks/session-tracker.sh"
+    if [[ -x "${session_tracker}" ]]; then
+        "${session_tracker}" clear
+        echo "Session cleared. Next commit will start fresh."
+    else
+        echo "Error: Session tracker not found" >&2
+        exit 1
+    fi
+}
+
 cmd_install_hooks() {
     if ! git rev-parse --git-dir &>/dev/null; then
         echo "Error: Not in a git repository" >&2
@@ -237,7 +248,17 @@ Commands:
   stats           Show attestation statistics
   install-hooks   Install git hooks in current repository
   attest-human    Attest that HEAD commit was human-authored (no AI)
+  clear-session   Clear current session (start fresh for next task)
   help            Show this help message
+
+Session Management:
+  Sessions are automatically cleared on:
+  - /clear command in Claude Code
+  - New Claude Code session
+  - Git branch switch
+
+  Use 'leeroy clear-session' to manually clear when starting a new task
+  without clearing Claude's conversation context.
 
 Examples:
   leeroy install-hooks
@@ -245,6 +266,7 @@ Examples:
   leeroy show abc123
   leeroy stats
   leeroy attest-human    # Add human attestation to last commit
+  leeroy clear-session   # Clear session before starting new task
 EOF
 }
 
@@ -254,6 +276,7 @@ case "${1:-help}" in
     stats)         cmd_stats ;;
     install-hooks) cmd_install_hooks ;;
     attest-human)  cmd_attest_human "${2:-HEAD}" ;;
+    clear-session) cmd_clear_session ;;
     help|*)        cmd_help ;;
 esac
 EOFCLI
@@ -273,9 +296,11 @@ if [[ -f "${CLAUDE_SETTINGS}" ]]; then
     # Use jq to merge hooks into existing settings
     tmp=$(mktemp)
     jq --arg capture "${INSTALL_DIR}/hooks/capture-prompt.sh" \
-       --arg tooluse "${INSTALL_DIR}/hooks/post-tool-use-wrapper.sh" '
+       --arg tooluse "${INSTALL_DIR}/hooks/post-tool-use-wrapper.sh" \
+       --arg sessionclear "${INSTALL_DIR}/hooks/session-clear.sh" '
        .hooks.UserPromptSubmit = [{"hooks": [{"type": "command", "command": $capture}]}] |
-       .hooks.PostToolUse = [{"hooks": [{"type": "command", "command": $tooluse}]}]
+       .hooks.PostToolUse = [{"hooks": [{"type": "command", "command": $tooluse}]}] |
+       .hooks.SessionStart = [{"hooks": [{"type": "command", "command": $sessionclear}]}]
     ' "${CLAUDE_SETTINGS}" > "$tmp" && mv "$tmp" "${CLAUDE_SETTINGS}"
 
     echo "Hooks merged into ${CLAUDE_SETTINGS}"
@@ -301,6 +326,16 @@ else
           {
             "type": "command",
             "command": "${INSTALL_DIR}/hooks/post-tool-use-wrapper.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${INSTALL_DIR}/hooks/session-clear.sh"
           }
         ]
       }

@@ -210,6 +210,17 @@ cmd_push() {
     echo "✓ Notes pushed"
 }
 
+cmd_clear_session() {
+    local session_tracker="${HOME}/.leeroy/hooks/session-tracker.sh"
+    if [[ -x "${session_tracker}" ]]; then
+        "${session_tracker}" clear
+        echo "Session cleared. Next commit will start fresh."
+    else
+        echo "Error: Session tracker not found" >&2
+        exit 1
+    fi
+}
+
 cmd_install_hooks() {
     # Check if we're in a git repo
     if ! git rev-parse --git-dir &>/dev/null; then
@@ -272,8 +283,8 @@ cmd_install_hooks() {
 
 cmd_help() {
     cat << EOF
-🐔 Leeroy CLI
-   At least you have attestation.
+Leeroy CLI
+At least you have attestation.
 
 Usage: leeroy <command> [args]
 
@@ -285,7 +296,17 @@ Commands:
   fetch             Fetch attestation notes from origin
   push              Push attestation notes to origin
   install-hooks     Install git hooks in current repository
+  clear-session     Clear current session (start fresh for next task)
   help              Show this help message
+
+Session Management:
+  Sessions are automatically cleared on:
+  - /clear command in Claude Code
+  - New Claude Code session
+  - Git branch switch
+
+  Use 'leeroy clear-session' to manually clear when starting a new task
+  without clearing Claude's conversation context.
 
 Examples:
   leeroy install-hooks
@@ -293,6 +314,7 @@ Examples:
   leeroy show abc123
   leeroy verify HEAD~3
   leeroy stats
+  leeroy clear-session   # Clear session before starting new task
 EOF
 }
 
@@ -305,6 +327,7 @@ case "${1:-help}" in
     fetch)         cmd_fetch ;;
     push)          cmd_push ;;
     install-hooks) cmd_install_hooks ;;
+    clear-session) cmd_clear_session ;;
     help|*)        cmd_help ;;
 esac
 EOFCLI
@@ -344,6 +367,16 @@ if [[ -f "${CLAUDE_SETTINGS}" ]]; then
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${INSTALL_DIR}/hooks/session-clear.sh"
+          }
+        ]
+      }
     ]
   }
 }
@@ -370,6 +403,16 @@ else
           {
             "type": "command",
             "command": "${INSTALL_DIR}/hooks/post-tool-use-wrapper.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${INSTALL_DIR}/hooks/session-clear.sh"
           }
         ]
       }

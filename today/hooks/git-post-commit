@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 #
 # Leeroy - Post Commit Hook
-# Clears the session after commit is complete
+# Clears files after commit (prompts persist for multi-commit workflows)
+#
+# Full session clear only happens on:
+#   - /clear command (via SessionStart hook)
+#   - New Claude Code session (via SessionStart hook)
 
 set -euo pipefail
 
 SESSION_TRACKER="${HOME}/.leeroy/hooks/session-tracker.sh"
 
-# Clear the session
+# Clear files only - prompts persist for multi-commit workflows
 if [[ -x "${SESSION_TRACKER}" ]]; then
-    "${SESSION_TRACKER}" clear 2>/dev/null || true
+    "${SESSION_TRACKER}" clear-files 2>/dev/null || true
 fi

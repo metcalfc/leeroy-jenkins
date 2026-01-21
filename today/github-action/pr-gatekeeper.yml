@@ -210,32 +210,38 @@ jobs:
             echo "❌ PR rejected: No write access and no Leeroy attestation"
           fi
 
-          # Determine label based on attestation types
+          # Determine labels - trust level AND attestation type are separate
           ai_count="${{ steps.check-attestation.outputs.ai_attested }}"
           human_count="${{ steps.check-attestation.outputs.human_attested }}"
 
+          # Trust label (based on author permissions)
           if [[ "${has_write}" == "true" ]]; then
-            echo "label=trusted-contributor" >> $GITHUB_OUTPUT
-          elif [[ "${all_attested}" == "true" ]]; then
-            # All attested - determine the type
+            echo "trust_label=trusted-contributor" >> $GITHUB_OUTPUT
+          else
+            echo "trust_label=" >> $GITHUB_OUTPUT
+          fi
+
+          # Attestation label (based on commit attestations)
+          if [[ "${all_attested}" == "true" ]]; then
             if [[ "${ai_count}" -gt 0 && "${human_count}" -gt 0 ]]; then
-              echo "label=attested-mixed" >> $GITHUB_OUTPUT
+              echo "attestation_label=attested-mixed" >> $GITHUB_OUTPUT
             elif [[ "${ai_count}" -gt 0 ]]; then
-              echo "label=ai-assisted" >> $GITHUB_OUTPUT
+              echo "attestation_label=ai-assisted" >> $GITHUB_OUTPUT
             else
-              echo "label=human-attested" >> $GITHUB_OUTPUT
+              echo "attestation_label=human-attested" >> $GITHUB_OUTPUT
             fi
           elif [[ "${has_attestation}" == "true" ]]; then
-            echo "label=attested-partial" >> $GITHUB_OUTPUT
+            echo "attestation_label=attested-partial" >> $GITHUB_OUTPUT
           else
-            echo "label=no-attestation" >> $GITHUB_OUTPUT
+            echo "attestation_label=no-attestation" >> $GITHUB_OUTPUT
           fi
 
       - name: Add labels
         uses: actions/github-script@v7
         with:
           script: |
-            const label = '${{ steps.evaluate.outputs.label }}';
+            const trustLabel = '${{ steps.evaluate.outputs.trust_label }}';
+            const attestationLabel = '${{ steps.evaluate.outputs.attestation_label }}';
             const allSigned = '${{ steps.check-signatures.outputs.all_signed }}' === 'true';
 
             // All possible labels this action manages
@@ -269,21 +275,36 @@ jobs:
               }).catch(() => {}); // Ignore if label doesn't exist
             }
 
-            // Build label list
-            const labelsToAdd = [label];
+            // Build label list - add all applicable labels
+            const labelsToAdd = [];
+
+            // Trust level label
+            if (trustLabel) {
+              labelsToAdd.push(trustLabel);
+            }
+
+            // Attestation type label
+            if (attestationLabel) {
+              labelsToAdd.push(attestationLabel);
+            }
+
+            // Signature label
             if (allSigned) {
               labelsToAdd.push('signed-commits');
             }
 
-            // Add labels
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: labelsToAdd
-            });
-
-            console.log(`Applied labels: ${labelsToAdd.join(', ')}`);
+            // Add labels if we have any
+            if (labelsToAdd.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: labelsToAdd
+              });
+              console.log(`Applied labels: ${labelsToAdd.join(', ')}`);
+            } else {
+              console.log('No labels to apply');
+            }
 
       - name: Post status comment
         uses: actions/github-script@v7

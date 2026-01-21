@@ -82,10 +82,20 @@ get_session() {
     fi
 }
 
-# Clear session (called after commit)
+# Clear session (called on /clear or new Claude session)
 clear_session() {
     rm -f "${SESSION_FILE}"
     echo "Session cleared" >&2
+}
+
+# Clear just files (called after commit - prompts persist for multi-commit workflows)
+clear_files() {
+    if [[ -f "${SESSION_FILE}" ]]; then
+        local tmp
+        tmp=$(mktemp)
+        jq '.files_modified = []' "${SESSION_FILE}" > "$tmp" && mv "$tmp" "${SESSION_FILE}"
+        echo "Files cleared (prompts preserved)" >&2
+    fi
 }
 
 # Main dispatch
@@ -105,8 +115,11 @@ case "${1:-}" in
     clear)
         clear_session
         ;;
+    clear-files)
+        clear_files
+        ;;
     *)
-        echo "Usage: $0 {init|file|prompt|get|clear}" >&2
+        echo "Usage: $0 {init|file|prompt|get|clear|clear-files}" >&2
         exit 1
         ;;
 esac

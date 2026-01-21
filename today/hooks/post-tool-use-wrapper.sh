@@ -21,11 +21,26 @@ if [[ "${tool_name}" != "Write" && "${tool_name}" != "Edit" ]]; then
     exit 0
 fi
 
-# Extract file path
+# Extract file path (absolute path from Claude)
 file_path=$(echo "${input}" | jq -r '.tool_input.file_path // empty' 2>/dev/null || true)
 
 if [[ -z "${file_path}" ]]; then
     exit 0
+fi
+
+# Determine modification type using absolute path (before converting to relative)
+if [[ -f "${file_path}" ]]; then
+    mod_type="modified"
+else
+    mod_type="created"
+fi
+
+# Convert to relative path from git repo root (avoid leaking full filesystem paths)
+if git rev-parse --git-dir &>/dev/null 2>&1; then
+    repo_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
+    if [[ -n "${repo_root}" && "${file_path}" == "${repo_root}"/* ]]; then
+        file_path="${file_path#${repo_root}/}"
+    fi
 fi
 
 # Try to extract model from transcript
@@ -43,13 +58,6 @@ fi
 if command -v claude &>/dev/null; then
     version=$(claude --version 2>/dev/null | head -1 || true)
     export CLAUDE_CODE_VERSION="${version}"
-fi
-
-# Determine modification type
-if [[ -f "${file_path}" ]]; then
-    mod_type="modified"
-else
-    mod_type="created"
 fi
 
 # Log the file modification
