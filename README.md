@@ -4,6 +4,19 @@
 
 Transparent attribution for AI-assisted code contributions.
 
+## Quick Start
+
+```bash
+git clone https://github.com/metcalfc/leeroy-jenkins.git
+cd today && ./install.sh
+export PATH="${PATH}:${HOME}/.leeroy/bin"
+
+cd /path/to/your/repo
+leeroy install-hooks
+```
+
+Work with Claude Code normally. Attestations are attached automatically when you commit.
+
 ## Two Versions
 
 ### [Today](today/) - Use it now
@@ -12,14 +25,7 @@ Embeds AI attestation directly into commit messages. Works with any git host, an
 
 ![Leeroy Demo](demo-commits.gif)
 
-
-```bash
-cd today && ./install.sh
 ```
-
-```
-$ git commit -m "Add feature"
-
 $ git log -1
 Add feature
 
@@ -44,14 +50,7 @@ Uses git notes for rich attestation with cryptographic signatures and full promp
 
 ![Leeroy Demo](demo-notes.gif)
 
-
-```bash
-cd tomorrow && ./install.sh
 ```
-
-```
-$ git commit -m "Add feature"
-
 $ git notes --ref=leeroy show HEAD
 -----BEGIN AI ATTESTATION-----
 Version: 1.0
@@ -84,29 +83,6 @@ This toolkit provides **opt-in transparency** so honest contributors can show:
 - Which files AI touched
 - The iteration process
 
-## Quick Start
-
-**Choose one:**
-
-```bash
-# Today - embed in commit messages (recommended)
-cd today && ./install.sh
-
-# Tomorrow - use git notes (experimental)
-cd tomorrow && ./install.sh
-```
-
-Then:
-
-```bash
-export PATH="${PATH}:${HOME}/.leeroy/bin"
-
-cd /path/to/your/repo
-leeroy install-hooks
-```
-
-Work with Claude Code normally. Attestations are attached automatically when you commit.
-
 ## Comparison
 
 | Feature | Today | Tomorrow |
@@ -118,37 +94,13 @@ Work with Claude Code normally. Attestations are attached automatically when you
 | Survives rebase | Yes (part of message) | No |
 | Commit message size | Larger | Unchanged |
 
-## CLI Commands
+## Documentation
 
-Both versions use the same CLI:
-
-```bash
-leeroy list           # List AI-assisted commits
-leeroy show HEAD      # Show attestation for a commit
-leeroy stats          # Show repo statistics
-leeroy install-hooks  # Install git hooks in current repo
-```
-
-Tomorrow version adds:
-```bash
-leeroy verify HEAD    # Verify tool signature
-leeroy fetch          # Fetch notes from origin
-leeroy push           # Push notes to origin
-```
-
-## If you want to use it
-
-Add to your CONTRIBUTING.md:
-
-```markdown
-## AI-Assisted Contributions
-
-We welcome AI-assisted contributions! To help us review effectively:
-
-1. Install the [Leeroy toolkit](https://github.com/metcalfc/leeroy-jenkins)
-2. Commit normally - attestations are automatic
-3. Your prompts and AI tool info will be visible in commits
-```
+- **[Installation](docs/installation.md)** - Detailed setup for both versions
+- **[CLI Reference](docs/cli-reference.md)** - All commands and options
+- **[GitHub Actions](docs/github-actions.md)** - PR validation and labeling
+- **[For Maintainers](docs/for-maintainers.md)** - Adding Leeroy to your project
+- **[Why Leeroy?](docs/WHAT-THIS-GETS-US.md)** - Value proposition and trust model
 
 ## Requirements
 
@@ -156,13 +108,10 @@ We welcome AI-assisted contributions! To help us review effectively:
 - `openssl` - Session ID generation
 - `git`
 
-## See Also
-
-- [docs/WHAT-THIS-GETS-US.md](docs/WHAT-THIS-GETS-US.md) - Value proposition and trust model
-- [today/README.md](today/README.md) - Today version details
-- [tomorrow/README.md](tomorrow/README.md) - Tomorrow version details
-- [Lets reminisce about the good ol' days and watch the original Leeroy Jenkins](https://www.youtube.com/watch?v=mLyOj_QD4a4)
-
 ## License
 
 MIT
+
+---
+
+[Lets reminisce about the good ol' days and watch the original Leeroy Jenkins](https://www.youtube.com/watch?v=mLyOj_QD4a4)
