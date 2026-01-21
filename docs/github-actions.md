@@ -34,6 +34,7 @@ cp today/github-action/pr-gatekeeper.yml .github/workflows/
 | `attested-mixed` | Mix of AI and human attestation |
 | `attested-partial` | Some commits have attestation |
 | `no-attestation` | No attestation (PR rejected) |
+| `signed-commits` | All commits are cryptographically signed (GPG/SSH) |
 
 ### PR Comment
 

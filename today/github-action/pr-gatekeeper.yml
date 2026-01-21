@@ -121,6 +121,64 @@ jobs:
           echo -e "${unattested_commits}" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Check commit signatures
+        id: check-signatures
+        run: |
+          BASE_SHA=${{ github.event.pull_request.base.sha }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+
+          echo "Checking commit signatures from ${BASE_SHA:0:8} to ${HEAD_SHA:0:8}"
+
+          total=0
+          signed=0
+          signature_details=""
+
+          for sha in $(git rev-list ${BASE_SHA}..${HEAD_SHA}); do
+            ((total++)) || true
+            short_sha="${sha:0:8}"
+            subject=$(git log -1 --format="%s" ${sha})
+
+            # Check if commit is signed (GPG or SSH)
+            # %G? gives: G=good, B=bad, U=untrusted, X=expired, Y=expired key, R=revoked, E=missing key, N=none
+            sig_status=$(git log -1 --format="%G?" ${sha})
+            signer=$(git log -1 --format="%GS" ${sha})
+
+            if [[ "${sig_status}" == "G" ]]; then
+              ((signed++)) || true
+              signature_details="${signature_details}${short_sha} [✅ ${signer}] ${subject}\n"
+              echo "✅ ${short_sha}: Signed by ${signer}"
+            elif [[ "${sig_status}" == "U" ]]; then
+              # Untrusted but valid signature - still count it
+              ((signed++)) || true
+              signature_details="${signature_details}${short_sha} [⚠️ ${signer} (untrusted)] ${subject}\n"
+              echo "⚠️ ${short_sha}: Signed by ${signer} (untrusted key)"
+            else
+              signature_details="${signature_details}${short_sha} [❌ unsigned] ${subject}\n"
+              echo "❌ ${short_sha}: Not signed"
+            fi
+          done
+
+          echo "signed=${signed}" >> $GITHUB_OUTPUT
+          echo "total=${total}" >> $GITHUB_OUTPUT
+
+          # All commits signed?
+          if [[ ${total} -gt 0 && ${signed} -eq ${total} ]]; then
+            echo "all_signed=true" >> $GITHUB_OUTPUT
+          else
+            echo "all_signed=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Any commits signed?
+          if [[ ${signed} -gt 0 ]]; then
+            echo "has_signatures=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_signatures=false" >> $GITHUB_OUTPUT
+          fi
+
+          echo "signature_details<<EOF" >> $GITHUB_OUTPUT
+          echo -e "${signature_details}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Evaluate PR status
         id: evaluate
         run: |
@@ -178,6 +236,7 @@ jobs:
         with:
           script: |
             const label = '${{ steps.evaluate.outputs.label }}';
+            const allSigned = '${{ steps.check-signatures.outputs.all_signed }}' === 'true';
 
             // All possible labels this action manages
             const managedLabels = [
@@ -186,7 +245,8 @@ jobs:
               'human-attested',
               'attested-mixed',
               'attested-partial',
-              'no-attestation'
+              'no-attestation',
+              'signed-commits'
             ];
 
             // Remove any existing managed labels first
@@ -209,15 +269,21 @@ jobs:
               }).catch(() => {}); // Ignore if label doesn't exist
             }
 
-            // Add new label
+            // Build label list
+            const labelsToAdd = [label];
+            if (allSigned) {
+              labelsToAdd.push('signed-commits');
+            }
+
+            // Add labels
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              labels: [label]
+              labels: labelsToAdd
             });
 
-            console.log(`Applied label: ${label}`);
+            console.log(`Applied labels: ${labelsToAdd.join(', ')}`);
 
       - name: Post status comment
         uses: actions/github-script@v7
@@ -234,6 +300,9 @@ jobs:
             const humanAttested = parseInt('${{ steps.check-attestation.outputs.human_attested }}') || 0;
             const attestedCommits = `${{ steps.check-attestation.outputs.attested_commits }}`.trim();
             const unattestedCommits = `${{ steps.check-attestation.outputs.unattested_commits }}`.trim();
+            const signed = parseInt('${{ steps.check-signatures.outputs.signed }}') || 0;
+            const allSigned = '${{ steps.check-signatures.outputs.all_signed }}' === 'true';
+            const signatureDetails = `${{ steps.check-signatures.outputs.signature_details }}`.trim();
 
             const isApproved = status === 'approved';
             const icon = isApproved ? '✅' : '❌';
@@ -252,6 +321,18 @@ jobs:
             body += `- **Total attested commits:** ${attested}/${total}\n`;
             if (aiAttested > 0) body += `  - 🤖 AI-assisted: ${aiAttested}\n`;
             if (humanAttested > 0) body += `  - 👤 Human-attested: ${humanAttested}\n`;
+            body += '\n';
+
+            // Signature info
+            body += `### Signature Status\n`;
+            body += `- **Signed commits:** ${signed}/${total} ${allSigned ? '✅' : ''}\n`;
+            if (signatureDetails) {
+              body += `\n<details>\n<summary>Signature details</summary>\n\n`;
+              signatureDetails.split('\n').filter(Boolean).forEach(c => {
+                body += `- \`${c}\`\n`;
+              });
+              body += `\n</details>\n`;
+            }
             body += '\n';
 
             if (attestedCommits) {
