@@ -4,17 +4,14 @@
 
 Transparent attribution for AI-assisted code contributions.
 
-![Leeroy Demo](demo.gif)
-
-[Watch the original Leeroy Jenkins](https://www.youtube.com/watch?v=mLyOj_QD4a4)
-
----
-
 ## Two Versions
 
 ### [Today](today/) - Use it now
 
 Embeds AI attestation directly into commit messages. Works with any git host, any workflow, no ecosystem changes required.
+
+![Leeroy Demo](demo-commits.gif)
+
 
 ```bash
 cd today && ./install.sh
@@ -44,6 +41,9 @@ AI-Prompts:
 ### [Tomorrow](tomorrow/) - The full vision
 
 Uses git notes for rich attestation with cryptographic signatures and full prompt text. Demonstrates what's possible with platform support.
+
+![Leeroy Demo](demo-notes.gif)
+
 
 ```bash
 cd tomorrow && ./install.sh
@@ -136,7 +136,7 @@ leeroy fetch          # Fetch notes from origin
 leeroy push           # Push notes to origin
 ```
 
-## For Maintainers
+## If you want to use it
 
 Add to your CONTRIBUTING.md:
 
@@ -161,6 +161,7 @@ We welcome AI-assisted contributions! To help us review effectively:
 - [docs/WHAT-THIS-GETS-US.md](docs/WHAT-THIS-GETS-US.md) - Value proposition and trust model
 - [today/README.md](today/README.md) - Today version details
 - [tomorrow/README.md](tomorrow/README.md) - Tomorrow version details
+- [Lets reminisce about the good ol' days and watch the original Leeroy Jenkins](https://www.youtube.com/watch?v=mLyOj_QD4a4)
 
 ## License
 
