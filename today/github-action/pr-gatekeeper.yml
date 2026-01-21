@@ -23,6 +23,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      # With pull_request_target, we only get the base branch. Fetch the PR head
+      # so git rev-list can access those commits. We don't checkout the PR code,
+      # just fetch it for reading commit metadata.
+      - name: Fetch PR head
+        run: git fetch origin ${{ github.event.pull_request.head.sha }}
+
       - name: Check author permissions
         id: check-author
         uses: actions/github-script@v7
