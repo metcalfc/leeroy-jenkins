@@ -123,61 +123,46 @@ jobs:
 
       - name: Check commit signatures
         id: check-signatures
-        run: |
-          BASE_SHA=${{ github.event.pull_request.base.sha }}
-          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Use GitHub API for signature verification - works for GPG, SSH, and S/MIME
+            // Local git verification fails for SSH signatures without gpg.ssh.allowedSignersFile
+            const { data: commits } = await github.rest.pulls.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
 
-          echo "Checking commit signatures from ${BASE_SHA:0:8} to ${HEAD_SHA:0:8}"
+            console.log(`Checking signatures for ${commits.length} commits`);
 
-          total=0
-          signed=0
-          signature_details=""
+            let total = 0;
+            let signed = 0;
+            let signatureDetails = [];
 
-          for sha in $(git rev-list ${BASE_SHA}..${HEAD_SHA}); do
-            ((total++)) || true
-            short_sha="${sha:0:8}"
-            subject=$(git log -1 --format="%s" ${sha})
+            for (const commit of commits) {
+              total++;
+              const shortSha = commit.sha.slice(0, 8);
+              const subject = commit.commit.message.split('\n')[0];
+              const verification = commit.commit.verification;
 
-            # Check if commit is signed (GPG or SSH)
-            # %G? gives: G=good, B=bad, U=untrusted, X=expired, Y=expired key, R=revoked, E=missing key, N=none
-            sig_status=$(git log -1 --format="%G?" ${sha})
-            signer=$(git log -1 --format="%GS" ${sha})
+              if (verification && verification.verified) {
+                signed++;
+                const reason = verification.reason || 'verified';
+                signatureDetails.push(`${shortSha} [✅ ${reason}] ${subject}`);
+                console.log(`✅ ${shortSha}: Verified (${reason})`);
+              } else {
+                const reason = verification ? verification.reason : 'unsigned';
+                signatureDetails.push(`${shortSha} [❌ ${reason}] ${subject}`);
+                console.log(`❌ ${shortSha}: Not verified (${reason})`);
+              }
+            }
 
-            if [[ "${sig_status}" == "G" ]]; then
-              ((signed++)) || true
-              signature_details="${signature_details}${short_sha} [✅ ${signer}] ${subject}\n"
-              echo "✅ ${short_sha}: Signed by ${signer}"
-            elif [[ "${sig_status}" == "U" ]]; then
-              # Untrusted but valid signature - still count it
-              ((signed++)) || true
-              signature_details="${signature_details}${short_sha} [⚠️ ${signer} (untrusted)] ${subject}\n"
-              echo "⚠️ ${short_sha}: Signed by ${signer} (untrusted key)"
-            else
-              signature_details="${signature_details}${short_sha} [❌ unsigned] ${subject}\n"
-              echo "❌ ${short_sha}: Not signed"
-            fi
-          done
-
-          echo "signed=${signed}" >> $GITHUB_OUTPUT
-          echo "total=${total}" >> $GITHUB_OUTPUT
-
-          # All commits signed?
-          if [[ ${total} -gt 0 && ${signed} -eq ${total} ]]; then
-            echo "all_signed=true" >> $GITHUB_OUTPUT
-          else
-            echo "all_signed=false" >> $GITHUB_OUTPUT
-          fi
-
-          # Any commits signed?
-          if [[ ${signed} -gt 0 ]]; then
-            echo "has_signatures=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_signatures=false" >> $GITHUB_OUTPUT
-          fi
-
-          echo "signature_details<<EOF" >> $GITHUB_OUTPUT
-          echo -e "${signature_details}" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+            core.setOutput('signed', signed);
+            core.setOutput('total', total);
+            core.setOutput('all_signed', total > 0 && signed === total);
+            core.setOutput('has_signatures', signed > 0);
+            core.setOutput('signature_details', signatureDetails.join('\n'));
 
       - name: Evaluate PR status
         id: evaluate
@@ -244,16 +229,71 @@ jobs:
             const attestationLabel = '${{ steps.evaluate.outputs.attestation_label }}';
             const allSigned = '${{ steps.check-signatures.outputs.all_signed }}' === 'true';
 
-            // All possible labels this action manages
-            const managedLabels = [
-              'trusted-contributor',
-              'ai-assisted',
-              'human-attested',
-              'attested-mixed',
-              'attested-partial',
-              'no-attestation',
-              'signed-commits'
-            ];
+            // Label definitions with colors and descriptions
+            const labelDefs = {
+              'trusted-contributor': {
+                color: '238636',  // green
+                description: 'PR author has write access to this repository'
+              },
+              'ai-assisted': {
+                color: 'a371f7',  // purple
+                description: 'All commits have AI attestation via Leeroy'
+              },
+              'human-attested': {
+                color: '1f6feb',  // blue
+                description: 'All commits attested as human-authored'
+              },
+              'attested-mixed': {
+                color: '3fb950',  // teal
+                description: 'Mix of AI-assisted and human-attested commits'
+              },
+              'attested-partial': {
+                color: 'd29922',  // yellow/orange
+                description: 'Some commits have attestation'
+              },
+              'no-attestation': {
+                color: 'da3633',  // red
+                description: 'No commits have Leeroy attestation'
+              },
+              'signed-commits': {
+                color: '238636',  // green
+                description: 'All commits are cryptographically signed'
+              }
+            };
+
+            const managedLabels = Object.keys(labelDefs);
+
+            // Ensure labels exist with correct colors
+            async function ensureLabel(name) {
+              const def = labelDefs[name];
+              try {
+                await github.rest.issues.getLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: name
+                });
+                // Label exists, update color if needed
+                await github.rest.issues.updateLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: name,
+                  color: def.color,
+                  description: def.description
+                });
+              } catch (e) {
+                if (e.status === 404) {
+                  // Label doesn't exist, create it
+                  await github.rest.issues.createLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    name: name,
+                    color: def.color,
+                    description: def.description
+                  });
+                  console.log(`Created label: ${name}`);
+                }
+              }
+            }
 
             // Remove any existing managed labels first
             const existingLabels = await github.rest.issues.listLabelsOnIssue({
@@ -293,8 +333,11 @@ jobs:
               labelsToAdd.push('signed-commits');
             }
 
-            // Add labels if we have any
+            // Ensure labels exist with proper colors, then add them
             if (labelsToAdd.length > 0) {
+              for (const label of labelsToAdd) {
+                await ensureLabel(label);
+              }
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
